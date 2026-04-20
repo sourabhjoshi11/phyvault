@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, supabaseAdmin, uploadFile } from '@/lib/supabase'
+import { createServerClient, supabaseAdmin, uploadFile } from '@/lib/supabase-server'
 
 // Admin check helper
 async function isAdmin(req: NextRequest): Promise<boolean> {
