@@ -30,23 +30,25 @@ export default function HomePage() {
   async function fetchSubjects(year: Year) {
     setLoading(true)
     setSubjectsError('')
-    const { data, error } = await supabase
-      .from('subjects')
-      .select('*')
-      .eq('year', year)
-      .eq('is_active', true)
-      .order('sort_order')
+    try {
+      const res = await fetch(`/api/subjects?year=${year}`, {
+        cache: 'no-store',
+      })
+      const payload = await res.json()
 
-    if (error) {
-      console.error('Subjects fetch error:', error)
-      setSubjects([])
-      setSubjectsError(error.message)
+      if (!res.ok) {
+        throw new Error(payload.error || 'Failed to load subjects')
+      }
+
+      setSubjects(payload.subjects || [])
       setLoading(false)
       return
+    } catch (error: any) {
+      console.error('Subjects fetch error:', error)
+      setSubjects([])
+      setSubjectsError(error.message || 'Failed to load subjects')
+      setLoading(false)
     }
-
-    setSubjects(data || [])
-    setLoading(false)
   }
 
   function switchYear(year: Year) {
