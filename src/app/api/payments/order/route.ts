@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Login zaroori hai' }, { status: 401 })
+      return NextResponse.json({ error: 'Login required' }, { status: 401 })
     }
 
     const body = await req.json()

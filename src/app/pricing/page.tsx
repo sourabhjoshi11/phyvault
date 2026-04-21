@@ -85,8 +85,8 @@ export default function PricingPage() {
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '56px 24px' }}>
         <div style={{ textAlign: 'center', marginBottom: 48 }}>
           <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: 'uppercase', color: '#06B6D4', fontWeight: 700, marginBottom: 6 }}>Plans & Pricing</div>
-          <div style={{ fontSize: 'clamp(24px,4vw,42px)', fontWeight: 900, letterSpacing: -1, marginBottom: 10 }}>Apna Plan Chuniye</div>
-          <div style={{ color: 'var(--text2)', fontSize: 15 }}>Per PDF khareedo ya unlimited ke liye subscribe karo</div>
+          <div style={{ fontSize: 'clamp(24px,4vw,42px)', fontWeight: 900, letterSpacing: -1, marginBottom: 10 }}>Choose Your Plan</div>
+          <div style={{ color: 'var(--text2)', fontSize: 15 }}>Buy individual PDFs or subscribe for unlimited access</div>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))', gap: 16, marginBottom: 40 }}>
@@ -143,7 +143,7 @@ export default function PricingPage() {
 
         {/* Exam pattern reminder */}
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 16, padding: '24px 28px' }}>
-          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>📊 MPMSU Exam Pattern — Yaad rakho</div>
+          <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>📊 MPMSU Exam Pattern</div>
           <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', fontSize: 13, color: 'var(--text2)' }}>
             <div>✦ 10 VSAQs × 2 marks = <b>20</b></div>
             <div>✦ 5 SAQs × 10 marks = <b>50</b></div>

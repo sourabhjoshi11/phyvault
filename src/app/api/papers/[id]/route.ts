@@ -10,7 +10,7 @@ export async function GET(
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Login zaroori hai' }, { status: 401 })
+      return NextResponse.json({ error: 'Login required' }, { status: 401 })
     }
 
     const paperId = params.id
@@ -28,7 +28,7 @@ export async function GET(
     }
 
     if (!paper.file_path) {
-      return NextResponse.json({ error: 'PDF abhi upload nahi hua' }, { status: 404 })
+      return NextResponse.json({ error: 'PDF has not been uploaded yet' }, { status: 404 })
     }
 
     // Free preview check
@@ -55,7 +55,7 @@ export async function GET(
     if (!purchase) {
       return NextResponse.json({
         error: 'Access denied',
-        message: 'Yeh PDF khareedna hoga',
+        message: 'This PDF must be purchased to access it',
         price: paper.price
       }, { status: 403 })
     }

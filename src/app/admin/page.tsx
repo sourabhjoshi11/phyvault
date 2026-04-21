@@ -82,7 +82,7 @@ export default function AdminPage() {
         setAuthed(true);
         fetchAll();
       } else if (user) {
-        setLoginErr("Admin account se login karein.");
+        setLoginErr("Please sign in with the admin account.");
       }
       setAuthLoading(false);
     });
@@ -148,7 +148,7 @@ export default function AdminPage() {
 
     if (user?.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
       await supabase.auth.signOut();
-      setLoginErr("Admin account se login karein.");
+      setLoginErr("Please sign in with the admin account.");
       setAuthed(false);
       return;
     }
@@ -160,11 +160,11 @@ export default function AdminPage() {
   // ── UPLOAD ──
   async function handleUpload(file: File) {
     if (!file.name.endsWith(".pdf")) {
-      showToast("❌ Sirf PDF files allowed");
+      showToast("Only PDF files are allowed");
       return;
     }
     if (!upSubject) {
-      showToast("❌ Subject chunno");
+      showToast("Please select a subject");
       return;
     }
 

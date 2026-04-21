@@ -2,10 +2,8 @@
 
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { useRouter } from 'next/navigation'
 
 export default function SignupPage() {
-  const router = useRouter()
   const [form, setForm] = useState({ name: '', email: '', password: '' })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -37,14 +35,15 @@ export default function SignupPage() {
     return (
       <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 24, padding: 40, width: '100%', maxWidth: 400, textAlign: 'center' }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>📧</div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Email Verify Karein!</h2>
+          <div style={{ fontSize: 56, marginBottom: 16 }}>Mail</div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Verify Your Email</h2>
           <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-            <b>{form.email}</b> pe ek verification link bheja gaya hai.<br />
-            Email check karo aur link pe click karo.
+            A verification link has been sent to <b>{form.email}</b>.
+            <br />
+            Open your inbox and click the link to continue.
           </p>
           <a href="/auth/login" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 11, background: '#06B6D4', color: 'white', fontWeight: 700, textDecoration: 'none', fontSize: 14 }}>
-            Login Page Pe Jao
+            Go to Login
           </a>
         </div>
       </div>
@@ -54,26 +53,27 @@ export default function SignupPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 24, padding: 40, width: '100%', maxWidth: 400, boxShadow: '0 32px 80px rgba(0,0,0,.6)' }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 20px' }}>🦴</div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4, textAlign: 'center' }}>Join PhysioVault ✦</h1>
-        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 28, textAlign: 'center' }}>Free account banao — abhi shuru karo</p>
+        <div style={{ width: 52, height: 52, borderRadius: 15, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 20px' }}>PV</div>
+        <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4, textAlign: 'center' }}>Join PhysioVault</h1>
+        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 28, textAlign: 'center' }}>Create a free account and get started</p>
 
         {error && (
           <div style={{ padding: '10px 13px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 9, fontSize: 13, color: '#EF4444', marginBottom: 13 }}>
-            ⚠️ {error}
+            {error}
           </div>
         )}
 
         <form onSubmit={handleSignup}>
           {[
-            { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Aapka poora naam' },
+            { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
             { key: 'email', label: 'Email Address', type: 'email', placeholder: 'email@example.com' },
             { key: 'password', label: 'Password', type: 'password', placeholder: 'Min. 8 characters' },
           ].map(field => (
             <div key={field.key} style={{ marginBottom: 14 }}>
               <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>{field.label}</label>
               <input
-                type={field.type} required
+                type={field.type}
+                required
                 value={form[field.key as keyof typeof form]}
                 onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
                 placeholder={field.placeholder}
@@ -83,16 +83,17 @@ export default function SignupPage() {
             </div>
           ))}
           <button
-            type="submit" disabled={loading}
+            type="submit"
+            disabled={loading}
             style={{ width: '100%', padding: 13, borderRadius: 11, fontSize: 15, fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: 'white', fontFamily: 'Outfit, sans-serif', marginTop: 6, opacity: loading ? 0.7 : 1 }}
           >
-            {loading ? 'Account ban raha hai...' : 'Account Banao →'}
+            {loading ? 'Creating account...' : 'Create Account ->'}
           </button>
         </form>
 
         <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--text3)' }}>
-          Already account hai?{' '}
-          <a href="/auth/login" style={{ color: '#06B6D4', fontWeight: 600, textDecoration: 'none' }}>Login karein</a>
+          Already have an account?{' '}
+          <a href="/auth/login" style={{ color: '#06B6D4', fontWeight: 600, textDecoration: 'none' }}>Sign in</a>
         </p>
       </div>
     </div>

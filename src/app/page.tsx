@@ -17,6 +17,7 @@ export default function HomePage() {
   const [activeYear, setActiveYear] = useState<Year>('y1')
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [subjectsError, setSubjectsError] = useState('')
 
   useEffect(() => {
     // Auth check
@@ -28,12 +29,22 @@ export default function HomePage() {
 
   async function fetchSubjects(year: Year) {
     setLoading(true)
-    const { data } = await supabase
+    setSubjectsError('')
+    const { data, error } = await supabase
       .from('subjects')
       .select('*')
       .eq('year', year)
       .eq('is_active', true)
       .order('sort_order')
+
+    if (error) {
+      console.error('Subjects fetch error:', error)
+      setSubjects([])
+      setSubjectsError(error.message)
+      setLoading(false)
+      return
+    }
+
     setSubjects(data || [])
     setLoading(false)
   }
@@ -88,7 +99,7 @@ export default function HomePage() {
       {/* ── HERO ── */}
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '72px 28px 60px' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 13px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(6,182,212,.1)', border: '1px solid rgba(6,182,212,.25)', color: '#06B6D4', marginBottom: 18, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          ✦ BPT Students ke liye
+          For BPT Students
         </div>
         <h1 style={{ fontSize: 'clamp(32px,4.5vw,54px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: -1.5, marginBottom: 18 }}>
           Crack Your BPT<br />Exams with <span style={{ color: '#06B6D4' }}>Smart</span><br />Notes &amp; PYQs
@@ -97,7 +108,7 @@ export default function HomePage() {
           🎓 MP Medical Science University, Jabalpur
         </div>
         <p style={{ fontSize: 16, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 32, maxWidth: 460 }}>
-          Official MPMSU syllabus ke saath — chapter-wise notes, previous year papers aur solutions. Sab kuch ek jagah.
+          Built around the official MPMSU syllabus with chapter-wise notes, previous year papers, and solutions in one place.
         </p>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           <button
@@ -126,7 +137,7 @@ export default function HomePage() {
         <div style={{ marginBottom: 36 }}>
           <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: 'uppercase', color: '#06B6D4', fontWeight: 700, marginBottom: 6 }}>MPMSU BPT Syllabus</div>
           <div style={{ fontSize: 'clamp(20px,3vw,32px)', fontWeight: 900, letterSpacing: -0.7, marginBottom: 8 }}>All Subjects</div>
-          <div style={{ color: 'var(--text2)', fontSize: 14 }}>4 years · 11 subjects — sab kuch ek jagah</div>
+          <div style={{ color: 'var(--text2)', fontSize: 14 }}>4 years · 11 subjects in one place</div>
         </div>
 
         {/* Year Pills */}
@@ -155,6 +166,16 @@ export default function HomePage() {
             {[1,2,3,4,5,6].map(i => (
               <div key={i} style={{ background: 'var(--surface)', borderRadius: 16, padding: '20px 17px', height: 160, opacity: 0.4, animation: 'pulse 1.5s infinite' }} />
             ))}
+          </div>
+        ) : subjectsError ? (
+          <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', color: '#FCA5A5', borderRadius: 14, padding: '18px 20px', fontSize: 14, lineHeight: 1.6 }}>
+            Subjects could not be loaded.
+            <br />
+            {subjectsError}
+          </div>
+        ) : subjects.length === 0 ? (
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 14, padding: '18px 20px', fontSize: 14, lineHeight: 1.6 }}>
+            No subjects are available for this year yet.
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 12 }}>

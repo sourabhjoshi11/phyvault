@@ -55,7 +55,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
 
       if (res.ok) {
         window.open(data.url, '_blank')
-        showToast('⬇️ PDF download ho raha hai...')
+        showToast('Downloading PDF...')
       } else if (res.status === 403) {
         // Need to purchase
         await initPayment(itemId, itemType, data.price)
@@ -100,7 +100,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
           })
           if (verifyRes.ok) {
             setPurchases(p => [...p, itemId])
-            showToast('✅ Payment successful! Content unlock ho gaya.')
+            showToast('Payment successful. Content unlocked.')
           }
         },
       })
@@ -191,7 +191,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
         {activeTab === 'pyq' && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 16 }}>
             {years.length === 0 && (
-              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14 }}>⏳ PYQ papers abhi upload nahi hue. Jald aa rahe hain!</div>
+              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14 }}>PYQ papers have not been uploaded yet.</div>
             )}
             {years.map(yr => {
               const question = papers.find(p => p.exam_year === yr && p.type === 'question')
@@ -305,7 +305,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
               )
             })}
             {notes.filter(n => activeTab === 'notes' ? n.type === 'chapter_notes' : activeTab === 'short' ? n.type === 'short_notes' : n.type === 'important_qs').length === 0 && (
-              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14, textAlign: 'center' }}>⏳ Yeh content abhi upload nahi hua. Jald aa raha hai!</div>
+              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14, textAlign: 'center' }}>This content has not been uploaded yet.</div>
             )}
           </div>
         )}
@@ -339,7 +339,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
                 {subject.practical_marks > 0 && <>• Practical Internal: <b>20 marks</b><br /></>}
                 {subject.viva_marks > 0 && <>• Viva: <b>{subject.viva_marks} marks</b> (University)<br /></>}
                 <span style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, display: 'block' }}>
-                  Pass ke liye Theory + Viva mein minimum 50% zaroori hai.
+                  A minimum of 50% in Theory + Viva is required to pass.
                 </span>
               </div>
             </div>

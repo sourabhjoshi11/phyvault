@@ -8,7 +8,7 @@ export async function POST(req: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser()
 
     if (!user) {
-      return NextResponse.json({ error: 'Login zaroori hai' }, { status: 401 })
+      return NextResponse.json({ error: 'Login required' }, { status: 401 })
     }
 
     const body = await req.json()
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id })
     }
 
-    return NextResponse.json({ success: true, message: 'Payment verified! Content unlock ho gaya.' })
+    return NextResponse.json({ success: true, message: 'Payment verified. Content unlocked.' })
 
   } catch (error: any) {
     console.error('Verify error:', error)

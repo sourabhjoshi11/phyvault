@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     if (!file.name.endsWith(".pdf")) {
       return NextResponse.json(
-        { error: "Sirf PDF files allowed hain" },
+        { error: "Only PDF files are allowed" },
         { status: 400 },
       );
     }
