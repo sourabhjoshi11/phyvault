@@ -53,8 +53,8 @@ export default function SignupPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 24, padding: 40, width: '100%', maxWidth: 400, boxShadow: '0 32px 80px rgba(0,0,0,.6)' }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 20px' }}>PV</div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4, textAlign: 'center' }}>Join PhysioVault</h1>
+        <div style={{ width: 52, height: 52, borderRadius: 15, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 20px' }}>MB</div>
+        <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4, textAlign: 'center' }}>Join MedicoseBuddy</h1>
         <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 28, textAlign: 'center' }}>Create a free account and get started</p>
 
         {error && (

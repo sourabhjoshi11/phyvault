@@ -86,7 +86,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
         key: order.key,
         amount: order.amount,
         currency: order.currency,
-        name: 'PhysioVault',
+        name: 'MedicoseBuddy',
         description: subject?.name || 'BPT Study Material',
         order_id: order.order_id,
         prefill: { name: user.user_metadata?.full_name || '', email: user.email },
@@ -137,7 +137,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, height: 58, padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', background: 'rgba(7,9,15,0.9)', backdropFilter: 'blur(18px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>
           <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🦴</div>
-          <span style={{ fontSize: 16, fontWeight: 800 }}>PhysioVault</span>
+          <span style={{ fontSize: 16, fontWeight: 800 }}>MedicoseBuddy</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
           <span>{subject.icon}</span>

@@ -73,7 +73,7 @@ export default function HomePage() {
             display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16
           }}>🦴</div>
           <div>
-            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.4 }}>PhysioVault</div>
+            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.4 }}>MedicoseBuddy</div>
             <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 500, letterSpacing: 0.5 }}>BPT Study Platform</div>
           </div>
         </div>
@@ -220,7 +220,7 @@ export default function HomePage() {
 
       {/* ── FOOTER ── */}
       <div style={{ borderTop: '1px solid var(--border)', padding: '28px 24px', textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>
-        PhysioVault · MP Medical Science University, Jabalpur · BPT Study Platform · Session 2016-17 Onwards
+        MedicoseBuddy · MP Medical Science University, Jabalpur · BPT Study Platform · Session 2016-17 Onwards
       </div>
     </div>
   )

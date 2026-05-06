@@ -454,7 +454,7 @@ export default function AdminPage() {
               marginBottom: 24,
             }}
           >
-            PhysioVault — Secure Access
+            MedicoseBuddy — Secure Access
           </p>
           {loginErr && (
             <div
@@ -539,7 +539,7 @@ export default function AdminPage() {
             🦴
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800 }}>PhysioVault</div>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>MedicoseBuddy</div>
             <div
               style={{
                 fontSize: 9,

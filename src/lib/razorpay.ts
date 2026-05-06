@@ -15,7 +15,7 @@ export async function createOrder(amountInRupees: number, receipt: string) {
     amount: amountInRupees * 100, // paise mein
     currency: 'INR',
     receipt,
-    notes: { platform: 'PhysioVault' },
+    notes: { platform: 'MedicoseBuddy' },
   })
   return order
 }

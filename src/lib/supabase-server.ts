@@ -14,7 +14,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
 });
 
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
-const BUCKET = "physiovault-files";
+const BUCKET = "medicosebuddy-files";
 const BUCKET_SIZE_LIMIT = "52428800";
 
 async function ensureStorageBucket() {

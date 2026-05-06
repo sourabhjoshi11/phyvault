@@ -1,4 +1,4 @@
-# PhysioVault 🦴
+# MedicoseBuddy 🦴
 ## BPT Study Platform — MP Medical Science University, Jabalpur
 
 ---
@@ -8,7 +8,7 @@
 ### Step 1 — Supabase Setup (Free)
 
 1. **https://supabase.com** pe jaao → New Project banao
-2. Project name: `physiovault`
+2. Project name: `medicosebuddy`
 3. Database password: kuch strong daalo (save kar lo)
 4. Region: **South Asia (Mumbai)** chunna
 5. Project ban jaaye toh:
@@ -19,7 +19,7 @@
 
 6. **SQL Editor** mein jaao → `supabase_schema.sql` ka poora content paste karo → Run karo
 7. **Storage** mein jaao → **New Bucket**:
-   - Name: `physiovault-files`
+   - Name: `medicosebuddy-files`
    - Public: `OFF` (private)
    - File size limit: `50MB`
 
@@ -87,7 +87,7 @@ Ya directly Supabase Storage mein jaake upload karo.
 ## 📁 Project Structure
 
 ```
-physiovault/
+medicosebuddy/
 ├── src/
 │   ├── app/
 │   │   ├── api/
