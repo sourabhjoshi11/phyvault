@@ -1,5 +1,5 @@
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
--- PhysioVault — Supabase Database Schema
+-- MedicoseBuddy — Supabase Database Schema
 -- Supabase Dashboard > SQL Editor mein paste karo
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -216,12 +216,12 @@ CREATE POLICY "subscriptions_own_read" ON public.subscriptions FOR SELECT USING 
 -- 11. STORAGE BUCKET
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 -- Supabase Dashboard > Storage > New Bucket:
--- Name: physiovault-files
+-- Name: medicosebuddy-files
 -- Public: FALSE (private bucket)
 -- File size limit: 52428800 (50MB)
 
 -- Storage policies (SQL mein):
--- INSERT INTO storage.buckets (id, name, public) VALUES ('physiovault-files', 'physiovault-files', false);
+-- INSERT INTO storage.buckets (id, name, public) VALUES ('medicosebuddy-files', 'medicosebuddy-files', false);
 
 -- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 -- 12. SEED DATA — 1st Year Subjects
@@ -238,6 +238,27 @@ INSERT INTO public.subjects (name, code, year, icon, color, description, theory_
   ('General Surgery, Obstetrics & Gynaecology', 'BPT-204', 'y2', '🔬', '#EF4444', 'Surgical conditions, women health — theory only', 80, 0, 20, 0, 100, 4),
   ('Exercise Therapy including Yoga', 'BPT-205', 'y2', '🏋️', '#10B981', 'Therapeutic exercise, yoga, mobility — with practical', 100, 40, 40, 20, 200, 5),
   ('Electrotherapy', 'BPT-206', 'y2', '⚡', '#06B6D4', 'Electrophysical agents, light & thermal therapy', 100, 40, 40, 20, 200, 6)
+ON CONFLICT (code) DO NOTHING;
+
+-- 3rd Year subjects
+INSERT INTO public.subjects (name, code, year, icon, color, description, theory_marks, practical_marks, internal_marks, viva_marks, total_marks, sort_order) VALUES
+  ('Kinesiology & Biomechanics', 'BPT-301', 'y3', '🏃', '#06B6D4', 'Human movement analysis, kinematic & kinetic principles', 100, 40, 40, 20, 200, 1),
+  ('Neurology', 'BPT-302', 'y3', '🧠', '#8B5CF6', 'Neurological disorders, CNS & PNS conditions', 100, 40, 40, 20, 200, 2),
+  ('Orthopaedics incl. Sports Medicine', 'BPT-303', 'y3', '🦴', '#F59E0B', 'Musculoskeletal conditions, fractures, sports injuries', 100, 40, 40, 20, 200, 3),
+  ('Cardiorespiratory & ICU Management', 'BPT-304', 'y3', '💓', '#EF4444', 'Cardiopulmonary conditions, critical care physiotherapy', 100, 40, 40, 20, 200, 4),
+  ('Therapeutic Exercise - II', 'BPT-305', 'y3', '🏋️', '#10B981', 'Advanced therapeutic exercises, manual therapy techniques', 100, 40, 40, 20, 200, 5),
+  ('Clinical Methods in Physiotherapy', 'BPT-306', 'y3', '🔬', '#06B6D4', 'Clinical examination, assessment & documentation — theory only', 80, 0, 20, 0, 100, 6)
+ON CONFLICT (code) DO NOTHING;
+
+-- 4th Year subjects
+INSERT INTO public.subjects (name, code, year, icon, color, description, theory_marks, practical_marks, internal_marks, viva_marks, total_marks, sort_order) VALUES
+  ('Research Methodology & Biostatistics', 'BPT-401', 'y4', '📊', '#06B6D4', 'Research design, statistical methods, evidence-based PT — theory only', 80, 0, 20, 0, 100, 1),
+  ('Community Rehabilitation', 'BPT-402', 'y4', '🏘️', '#8B5CF6', 'Community-based rehabilitation, disability management — theory only', 80, 0, 20, 0, 100, 2),
+  ('Physiotherapy in Neurological Conditions', 'BPT-403', 'y4', '🧠', '#F59E0B', 'PT management of neurological disorders — stroke, CP, SCI', 100, 40, 40, 20, 200, 3),
+  ('Physiotherapy in Orthopaedic Conditions', 'BPT-404', 'y4', '🦴', '#EF4444', 'PT management of musculoskeletal & orthopaedic conditions', 100, 40, 40, 20, 200, 4),
+  ('Physiotherapy in Cardiorespiratory Conditions', 'BPT-405', 'y4', '💓', '#10B981', 'PT management of cardiac & pulmonary conditions', 100, 40, 40, 20, 200, 5),
+  ('Physiotherapy in Sports', 'BPT-406', 'y4', '🏆', '#06B6D4', 'Sports physiotherapy, injury prevention & rehabilitation', 100, 40, 40, 20, 200, 6),
+  ('Ethics, Administration & Management', 'BPT-407', 'y4', '⚖️', '#8B5CF6', 'Medical ethics, hospital administration, PT practice management — theory only', 80, 0, 20, 0, 100, 7)
 ON CONFLICT (code) DO NOTHING;
 
 -- Papers rows initialize karo (file_path null rahega jab tak upload na ho)

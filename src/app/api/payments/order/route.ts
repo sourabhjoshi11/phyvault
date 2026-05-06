@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Razorpay order create karo
-    const receipt = `pvault_${Date.now()}_${user.id.slice(0,8)}`
+    const receipt = `medico_${Date.now()}_${user.id.slice(0,8)}`
     const order = await createOrder(amount, receipt)
 
     // Order save karo database mein
