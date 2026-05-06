@@ -50,9 +50,9 @@ export async function POST(req: NextRequest) {
       item_id: order.item_id,
     })
 
-    // Downloads count badhaao
+    // Downloads count badhaao (non-critical — ignore if RPC missing)
     if (order.item_type === 'paper') {
-      await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id })
+      await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id }).catch(() => {})
     }
 
     return NextResponse.json({ success: true, message: 'Payment verified. Content unlocked.' })

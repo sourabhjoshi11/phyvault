@@ -34,6 +34,13 @@ export async function POST(req: NextRequest) {
         .eq('id', item_id)
         .single()
       dbAmount = note?.price || 0
+    } else if (item_type === 'subscription') {
+      const { data: priceRow } = await supabase
+        .from('prices')
+        .select('value')
+        .eq('key', item_id)
+        .single()
+      dbAmount = priceRow?.value || 0
     }
 
     if (dbAmount !== amount) {
