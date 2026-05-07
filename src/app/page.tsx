@@ -1,52 +1,39 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { Navbar } from '@/components/Navbar'
 import type { Subject, Year } from '@/types'
 
-// ── Syllabus Data (DB se aane tak fallback) ──
 const YEARS = [
-  { id: 'y1' as Year, label: '1st Year', color: '#06B6D4', marks: 900, subjects: 5 },
-  { id: 'y2' as Year, label: '2nd Year', color: '#10B981', marks: 800, subjects: 6 },
-  { id: 'y3' as Year, label: '3rd Year', color: '#F59E0B', marks: 900, subjects: 6 },
-  { id: 'y4' as Year, label: '4th Year', color: '#EF4444', marks: 900, subjects: 7 },
+  { id: 'y1' as Year, label: '1st Year', color: '#06B6D4', subjects: 5 },
+  { id: 'y2' as Year, label: '2nd Year', color: '#10B981', subjects: 6 },
+  { id: 'y3' as Year, label: '3rd Year', color: '#F59E0B', subjects: 6 },
+  { id: 'y4' as Year, label: '4th Year', color: '#EF4444', subjects: 7 },
 ]
 
 export default function HomePage() {
+  const router = useRouter()
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [activeYear, setActiveYear] = useState<Year>('y1')
-  const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
-  const [subjectsError, setSubjectsError] = useState('')
+  const [error, setError] = useState('')
 
-  useEffect(() => {
-    // Auth check
-    supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
-    supabase.auth.onAuthStateChange((_event, session) => setUser(session?.user ?? null))
-    // Subjects fetch
-    fetchSubjects('y1')
-  }, [])
+  useEffect(() => { fetchSubjects('y1') }, [])
 
   async function fetchSubjects(year: Year) {
     setLoading(true)
-    setSubjectsError('')
+    setError('')
     try {
-      const res = await fetch(`/api/subjects?year=${year}`, {
-        cache: 'no-store',
-      })
+      const res = await fetch(`/api/subjects?year=${year}`, { cache: 'no-store' })
       const payload = await res.json()
-
-      if (!res.ok) {
-        throw new Error(payload.error || 'Failed to load subjects')
-      }
-
+      if (!res.ok) throw new Error(payload.error || 'Failed to load subjects')
       setSubjects(payload.subjects || [])
-      setLoading(false)
-      return
-    } catch (error: any) {
-      console.error('Subjects fetch error:', error)
+    } catch (e: any) {
       setSubjects([])
-      setSubjectsError(error.message || 'Failed to load subjects')
+      setError(e.message || 'Failed to load subjects')
+    } finally {
       setLoading(false)
     }
   }
@@ -57,171 +44,130 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
-
-      {/* ── NAV ── */}
-      <nav style={{
-        position: 'sticky', top: 0, zIndex: 100, height: 62,
-        padding: '0 24px', display: 'flex', alignItems: 'center',
-        justifyContent: 'space-between', borderBottom: '1px solid var(--border)',
-        background: 'rgba(7,9,15,0.9)', backdropFilter: 'blur(18px)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
-          <div style={{
-            width: 34, height: 34, borderRadius: 10,
-            background: 'linear-gradient(135deg,#06B6D4,#10B981)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16
-          }}>🦴</div>
-          <div>
-            <div style={{ fontSize: 19, fontWeight: 800, letterSpacing: -0.4 }}>MedicoseBuddy</div>
-            <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 500, letterSpacing: 0.5 }}>BPT Study Platform</div>
-          </div>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {user ? (
-            <button
-              onClick={() => supabase.auth.signOut()}
-              style={{ padding: '7px 15px', borderRadius: 8, border: '1.5px solid var(--border2)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13 }}
-            >Logout</button>
-          ) : (
-            <>
-              <button
-                onClick={() => window.location.href = '/auth/login'}
-                style={{ padding: '7px 15px', borderRadius: 8, border: '1.5px solid var(--border2)', background: 'transparent', color: 'var(--text2)', cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 600, fontSize: 13 }}
-              >Login</button>
-              <button
-                onClick={() => window.location.href = '/auth/signup'}
-                style={{ padding: '8px 18px', borderRadius: 8, border: 'none', background: '#06B6D4', color: 'white', cursor: 'pointer', fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: 13 }}
-              >Sign Up Free</button>
-            </>
-          )}
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#07090F] text-[#EEF2FF]">
+      <Navbar />
 
       {/* ── HERO ── */}
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '72px 28px 60px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '5px 13px', borderRadius: 20, fontSize: 11, fontWeight: 700, background: 'rgba(6,182,212,.1)', border: '1px solid rgba(6,182,212,.25)', color: '#06B6D4', marginBottom: 18, textTransform: 'uppercase', letterSpacing: 0.8 }}>
-          For BPT Students
+      <section className="max-w-6xl mx-auto px-4 pt-10 pb-10 sm:pt-16 sm:pb-14">
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 mb-5 uppercase tracking-widest">
+          MBBS · BPT · Medical Students
         </div>
-        <h1 style={{ fontSize: 'clamp(32px,4.5vw,54px)', fontWeight: 900, lineHeight: 1.08, letterSpacing: -1.5, marginBottom: 18 }}>
-          Crack Your BPT<br />Exams with <span style={{ color: '#06B6D4' }}>Smart</span><br />Notes &amp; PYQs
+
+        <h1 className="text-3xl sm:text-4xl lg:text-[52px] font-black leading-[1.1] tracking-tight mb-5">
+          Your All-in-One<br />
+          Medical Exam{' '}
+          <span className="text-cyan-400">Study</span>
+          <br />
+          Companion
         </h1>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '8px 14px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--border2)', fontSize: 12, color: 'var(--text2)', marginBottom: 28, fontWeight: 500 }}>
+
+        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#111827] border border-white/[0.08] text-xs text-slate-400 mb-5 font-medium">
           🎓 MP Medical Science University, Jabalpur
         </div>
-        <p style={{ fontSize: 16, color: 'var(--text2)', lineHeight: 1.7, marginBottom: 32, maxWidth: 460 }}>
-          Built around the official MPMSU syllabus with chapter-wise notes, previous year papers, and solutions in one place.
+
+        <p className="text-sm sm:text-[15px] text-slate-400 leading-relaxed mb-7 max-w-sm sm:max-w-md">
+          Smart notes, previous year question papers &amp; detailed solutions for MBBS, BPT and all medical programs — built around the official MPMSU syllabus.
         </p>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+
+        <div className="flex flex-wrap gap-3">
           <button
             onClick={() => document.getElementById('subjects')?.scrollIntoView({ behavior: 'smooth' })}
-            style={{ padding: '13px 28px', borderRadius: 12, fontSize: 15, fontWeight: 700, border: 'none', cursor: 'pointer', background: '#06B6D4', color: 'white', fontFamily: 'Outfit, sans-serif' }}
-          >Browse Subjects →</button>
-          <button
-            onClick={() => window.location.href = '/pricing'}
-            style={{ padding: '13px 28px', borderRadius: 12, fontSize: 15, fontWeight: 600, border: '1.5px solid var(--border2)', cursor: 'pointer', background: 'transparent', color: 'var(--text)', fontFamily: 'Outfit, sans-serif' }}
-          >View Plans</button>
+            className="px-6 py-3 rounded-xl text-[15px] font-bold bg-cyan-500 text-white hover:bg-cyan-400 active:bg-cyan-600 transition-colors"
+          >
+            Browse Subjects →
+          </button>
+          <Link href="/pricing"
+            className="px-6 py-3 rounded-xl text-[15px] font-semibold border border-white/10 text-slate-200 hover:bg-white/5 active:bg-white/10 transition-colors">
+            View Plans
+          </Link>
         </div>
 
         {/* Stats */}
-        <div style={{ display: 'flex', gap: 28, marginTop: 40, flexWrap: 'wrap' }}>
-          {[['11', 'Total Subjects'], ['60+', 'Chapter Notes'], ['55+', 'PYQ Papers'], ['4', 'Years Covered']].map(([num, label]) => (
-            <div key={label}>
-              <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: -1 }}>{num}</div>
-              <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 2, fontWeight: 500 }}>{label}</div>
+        <div className="flex flex-wrap gap-8 mt-10">
+          {[['24', 'Total Subjects'], ['60+', 'Chapter Notes'], ['55+', 'PYQ Papers'], ['4', 'Years Covered']].map(([n, l]) => (
+            <div key={l}>
+              <div className="text-2xl font-black tracking-tight">{n}</div>
+              <div className="text-[11px] text-slate-500 mt-0.5 font-medium">{l}</div>
             </div>
           ))}
         </div>
-      </div>
+      </section>
 
-      {/* ── SUBJECTS SECTION ── */}
-      <div id="subjects" style={{ maxWidth: 1120, margin: '0 auto', padding: '0 24px 60px' }}>
-        <div style={{ marginBottom: 36 }}>
-          <div style={{ fontSize: 10, letterSpacing: 2.5, textTransform: 'uppercase', color: '#06B6D4', fontWeight: 700, marginBottom: 6 }}>MPMSU BPT Syllabus</div>
-          <div style={{ fontSize: 'clamp(20px,3vw,32px)', fontWeight: 900, letterSpacing: -0.7, marginBottom: 8 }}>All Subjects</div>
-          <div style={{ color: 'var(--text2)', fontSize: 14 }}>4 years · 11 subjects in one place</div>
+      {/* ── SUBJECTS ── */}
+      <section id="subjects" className="max-w-6xl mx-auto px-4 pb-16">
+        <div className="mb-7">
+          <div className="text-[10px] tracking-[2.5px] uppercase text-cyan-400 font-bold mb-1">MPMSU Syllabus</div>
+          <div className="text-2xl sm:text-3xl font-black tracking-tight mb-1">All Subjects</div>
+          <div className="text-slate-400 text-sm">4 years · 24 subjects in one place</div>
         </div>
 
-        {/* Year Pills */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 28 }}>
+        {/* Year pills — horizontal scroll on mobile */}
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none -mx-4 px-4">
           {YEARS.map(y => (
             <button
               key={y.id}
               onClick={() => switchYear(y.id)}
+              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-150"
               style={{
-                padding: '9px 18px', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                border: `1.5px solid ${activeYear === y.id ? y.color : 'var(--border)'}`,
-                cursor: 'pointer', fontFamily: 'Outfit, sans-serif',
-                background: activeYear === y.id ? y.color : 'var(--surface)',
-                color: activeYear === y.id ? 'white' : 'var(--text2)',
-                transition: 'all 0.2s',
+                borderColor: activeYear === y.id ? y.color : 'rgba(255,255,255,0.08)',
+                background: activeYear === y.id ? y.color : 'transparent',
+                color: activeYear === y.id ? 'white' : '#94A3B8',
               }}
             >
-              {y.label} <span style={{ fontSize: 10, opacity: 0.75 }}>({y.subjects} sub)</span>
+              {y.label}
+              <span className="ml-1 opacity-60 text-[10px]">({y.subjects})</span>
             </button>
           ))}
         </div>
 
-        {/* Subject Grid */}
+        {/* Subject grid */}
         {loading ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 12 }}>
-            {[1,2,3,4,5,6].map(i => (
-              <div key={i} style={{ background: 'var(--surface)', borderRadius: 16, padding: '20px 17px', height: 160, opacity: 0.4, animation: 'pulse 1.5s infinite' }} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="bg-[#111827] rounded-2xl h-44 animate-pulse opacity-30" />
             ))}
           </div>
-        ) : subjectsError ? (
-          <div style={{ background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', color: '#FCA5A5', borderRadius: 14, padding: '18px 20px', fontSize: 14, lineHeight: 1.6 }}>
-            Subjects could not be loaded.
-            <br />
-            {subjectsError}
+        ) : error ? (
+          <div className="bg-red-500/[0.07] border border-red-500/20 text-red-300 rounded-xl p-4 text-sm leading-relaxed">
+            ⚠️ {error}
           </div>
         ) : subjects.length === 0 ? (
-          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text2)', borderRadius: 14, padding: '18px 20px', fontSize: 14, lineHeight: 1.6 }}>
-            No subjects are available for this year yet.
+          <div className="bg-[#111827] border border-white/[0.06] text-slate-400 rounded-xl p-6 text-sm text-center">
+            No subjects available for this year yet.
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(210px,1fr))', gap: 12 }}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {subjects.map(s => (
-              <div
+              <button
                 key={s.id}
-                onClick={() => window.location.href = `/subjects/${s.id}`}
-                style={{
-                  background: 'var(--surface)', border: `1.5px solid var(--border)`,
-                  borderRadius: 16, padding: '20px 17px', cursor: 'pointer',
-                  transition: 'all 0.22s', position: 'relative', overflow: 'hidden',
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget
-                  el.style.transform = 'translateY(-4px)'
-                  el.style.borderColor = s.color
-                  el.style.boxShadow = '0 4px 30px rgba(0,0,0,.55)'
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget
-                  el.style.transform = 'translateY(0)'
-                  el.style.borderColor = 'var(--border)'
-                  el.style.boxShadow = 'none'
-                }}
+                onClick={() => router.push(`/subjects/${s.id}`)}
+                className="text-left bg-[#111827] border border-white/[0.06] rounded-2xl p-5 hover:-translate-y-1 hover:shadow-2xl hover:border-white/10 active:scale-[0.98] transition-all duration-200 relative overflow-hidden"
               >
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: s.color }} />
-                <div style={{ fontSize: 28, marginBottom: 10 }}>{s.icon}</div>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--text3)', marginBottom: 4, fontWeight: 500 }}>{s.code}</div>
-                <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 5, lineHeight: 1.35 }}>{s.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text3)', marginBottom: 13, lineHeight: 1.45 }}>{s.description}</div>
-                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                  <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, background: 'rgba(6,182,212,.1)', color: '#06B6D4' }}>💯 {s.total_marks}M</span>
-                  {s.practical_marks > 0 && <span style={{ padding: '2px 8px', borderRadius: 5, fontSize: 10, fontWeight: 600, background: 'var(--surface2)', color: 'var(--text3)' }}>🔬 Practical</span>}
+                <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: s.color }} />
+                <div className="text-3xl mb-3">{s.icon}</div>
+                <div className="font-mono text-[10px] text-slate-500 mb-1 font-medium tracking-wider">{s.code}</div>
+                <div className="text-sm font-bold mb-2 leading-snug">{s.name}</div>
+                <div className="text-xs text-slate-500 mb-4 leading-relaxed line-clamp-2">{s.description}</div>
+                <div className="flex gap-1.5 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-cyan-500/10 text-cyan-400">
+                    💯 {s.total_marks}M
+                  </span>
+                  {s.practical_marks > 0 && (
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-semibold bg-white/[0.04] text-slate-500">
+                      🔬 Practical
+                    </span>
+                  )}
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* ── FOOTER ── */}
-      <div style={{ borderTop: '1px solid var(--border)', padding: '28px 24px', textAlign: 'center', color: 'var(--text3)', fontSize: 12 }}>
-        MedicoseBuddy · MP Medical Science University, Jabalpur · BPT Study Platform · Session 2016-17 Onwards
-      </div>
+      <footer className="border-t border-white/[0.06] py-6 text-center text-slate-600 text-xs px-4">
+        MedicoseBuddy · MP Medical Science University, Jabalpur · Medical Study Platform
+      </footer>
     </div>
   )
 }

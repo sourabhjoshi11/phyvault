@@ -12,19 +12,14 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const {
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
-    } = body
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body
 
-    // HMAC signature verify karo
-    const isValid = verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature)
-    if (!isValid) {
+    // Verify HMAC signature
+    if (!verifyPayment(razorpay_order_id, razorpay_payment_id, razorpay_signature)) {
       return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 })
     }
 
-    // Order fetch karo
+    // Fetch order
     const { data: order } = await supabaseAdmin
       .from('orders')
       .select('*')
@@ -36,26 +31,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Order update karo — success
-    await supabaseAdmin.from('orders').update({
-      razorpay_payment_id,
-      status: 'success',
-    }).eq('id', order.id)
+    // Mark order as successful
+    await supabaseAdmin
+      .from('orders')
+      .update({ razorpay_payment_id, status: 'success' })
+      .eq('id', order.id)
 
-    // Purchase save karo (content unlock)
-    await supabaseAdmin.from('purchases').insert({
-      user_id: user.id,
-      order_id: order.id,
-      item_type: order.item_type,
-      item_id: order.item_id,
-    })
+    if (order.item_type === 'subscription') {
+      // Save to subscriptions table, not purchases
+      const expiresAt = new Date()
+      if (order.item_id === 'pro_monthly') {
+        expiresAt.setMonth(expiresAt.getMonth() + 1)
+      } else {
+        expiresAt.setFullYear(expiresAt.getFullYear() + 1)
+      }
+      await supabaseAdmin.from('subscriptions').insert({
+        user_id: user.id,
+        plan: order.item_id,
+        status: 'active',
+        starts_at: new Date().toISOString(),
+        expires_at: expiresAt.toISOString(),
+      })
+    } else {
+      // Save individual purchase (paper or note)
+      await supabaseAdmin.from('purchases').insert({
+        user_id: user.id,
+        order_id: order.id,
+        item_type: order.item_type,
+        item_id: order.item_id,
+      })
 
-    // Downloads count badhaao (non-critical — ignore if RPC missing)
-    if (order.item_type === 'paper') {
-      await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id }).catch(() => {})
+      // Increment download counter (non-critical)
+      if (order.item_type === 'paper') {
+        await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id }).catch(() => {})
+      }
     }
 
-    return NextResponse.json({ success: true, message: 'Payment verified. Content unlocked.' })
+    return NextResponse.json({ success: true })
 
   } catch (error: any) {
     console.error('Verify error:', error)

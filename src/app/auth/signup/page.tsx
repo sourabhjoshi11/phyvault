@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 
 export default function SignupPage() {
@@ -33,44 +34,51 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 24, padding: 40, width: '100%', maxWidth: 400, textAlign: 'center' }}>
-          <div style={{ fontSize: 56, marginBottom: 16 }}>Mail</div>
-          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 8 }}>Verify Your Email</h2>
-          <p style={{ color: 'var(--text2)', fontSize: 14, lineHeight: 1.7, marginBottom: 24 }}>
-            A verification link has been sent to <b>{form.email}</b>.
-            <br />
-            Open your inbox and click the link to continue.
+      <div className="min-h-screen bg-[#07090F] flex flex-col items-center justify-center px-4 py-10">
+        <div className="w-full max-w-sm bg-[#111827] border border-white/[0.08] rounded-2xl p-8 text-center">
+          <div className="text-5xl mb-4">📬</div>
+          <h2 className="text-xl font-black mb-2">Check Your Email</h2>
+          <p className="text-sm text-slate-400 leading-relaxed mb-6">
+            We sent a verification link to <span className="text-slate-200 font-medium">{form.email}</span>.
+            Click it to activate your account.
           </p>
-          <a href="/auth/login" style={{ display: 'inline-block', padding: '12px 28px', borderRadius: 11, background: '#06B6D4', color: 'white', fontWeight: 700, textDecoration: 'none', fontSize: 14 }}>
+          <Link href="/auth/login"
+            className="inline-block px-6 py-3 rounded-xl bg-cyan-500 text-white font-bold text-sm hover:bg-cyan-400 transition-colors">
             Go to Login
-          </a>
+          </Link>
         </div>
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 24, padding: 40, width: '100%', maxWidth: 400, boxShadow: '0 32px 80px rgba(0,0,0,.6)' }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 20px' }}>MB</div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4, textAlign: 'center' }}>Join MedicoseBuddy</h1>
-        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 28, textAlign: 'center' }}>Create a free account and get started</p>
+    <div className="min-h-screen bg-[#07090F] flex flex-col items-center justify-center px-4 py-10">
+      {/* Logo */}
+      <Link href="/" className="flex items-center gap-2 mb-8">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-sm font-bold text-white">MB</div>
+        <span className="text-lg font-extrabold tracking-tight">MedicoseBuddy</span>
+      </Link>
+
+      <div className="w-full max-w-sm bg-[#111827] border border-white/[0.08] rounded-2xl p-7">
+        <h1 className="text-xl font-black mb-1 text-center">Join MedicoseBuddy</h1>
+        <p className="text-sm text-slate-400 text-center mb-6">Create your free account</p>
 
         {error && (
-          <div style={{ padding: '10px 13px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 9, fontSize: 13, color: '#EF4444', marginBottom: 13 }}>
-            {error}
+          <div className="mb-4 px-4 py-3 bg-red-500/[0.08] border border-red-500/20 rounded-xl text-sm text-red-300">
+            ⚠️ {error}
           </div>
         )}
 
-        <form onSubmit={handleSignup}>
+        <form onSubmit={handleSignup} className="flex flex-col gap-4">
           {[
             { key: 'name', label: 'Full Name', type: 'text', placeholder: 'Your full name' },
-            { key: 'email', label: 'Email Address', type: 'email', placeholder: 'email@example.com' },
+            { key: 'email', label: 'Email Address', type: 'email', placeholder: 'you@example.com' },
             { key: 'password', label: 'Password', type: 'password', placeholder: 'Min. 8 characters' },
           ].map(field => (
-            <div key={field.key} style={{ marginBottom: 14 }}>
-              <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>{field.label}</label>
+            <div key={field.key}>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">
+                {field.label}
+              </label>
               <input
                 type={field.type}
                 required
@@ -78,22 +86,24 @@ export default function SignupPage() {
                 onChange={e => setForm(p => ({ ...p, [field.key]: e.target.value }))}
                 placeholder={field.placeholder}
                 minLength={field.key === 'password' ? 8 : undefined}
-                style={{ width: '100%', padding: '11px 14px', background: 'var(--surface2)', border: '1.5px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontFamily: 'Outfit, sans-serif', fontSize: 14, outline: 'none' }}
+                className="w-full px-4 py-3 bg-[#1C2333] border border-white/[0.08] rounded-xl text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-cyan-500/50 transition-colors"
               />
             </div>
           ))}
           <button
             type="submit"
             disabled={loading}
-            style={{ width: '100%', padding: 13, borderRadius: 11, fontSize: 15, fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: 'white', fontFamily: 'Outfit, sans-serif', marginTop: 6, opacity: loading ? 0.7 : 1 }}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed hover:from-cyan-400 hover:to-cyan-300 active:from-cyan-600 active:to-cyan-500 transition-all mt-1"
           >
-            {loading ? 'Creating account...' : 'Create Account ->'}
+            {loading ? 'Creating account…' : 'Create Account →'}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--text3)' }}>
+        <p className="text-center text-sm text-slate-500 mt-5">
           Already have an account?{' '}
-          <a href="/auth/login" style={{ color: '#06B6D4', fontWeight: 600, textDecoration: 'none' }}>Sign in</a>
+          <Link href="/auth/login" className="text-cyan-400 font-semibold hover:text-cyan-300">
+            Sign in
+          </Link>
         </p>
       </div>
     </div>

@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   razorpay_order_id     TEXT UNIQUE NOT NULL,
   razorpay_payment_id   TEXT,
   item_type             TEXT NOT NULL CHECK (item_type IN ('paper','note','subscription')),
-  item_id               UUID NOT NULL,
+  item_id               TEXT NOT NULL,  -- UUID for paper/note, plan key for subscription
   amount                INTEGER NOT NULL,   -- rupees
   status                TEXT DEFAULT 'pending' CHECK (status IN ('pending','success','failed')),
   payment_method        TEXT,

@@ -1,15 +1,27 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Navbar } from '@/components/Navbar'
 import { supabase } from '@/lib/supabase'
-import { openRazorpay } from '@/lib/razorpay'
+import { openRazorpay } from '@/lib/razorpay-client'
 import type { Subject, Paper, Note } from '@/types'
 
+const TABS = [
+  { id: 'pyq', label: '📄 PYQ Papers' },
+  { id: 'notes', label: '📖 Chapter Notes' },
+  { id: 'short', label: '📋 Short Notes' },
+  { id: 'imp', label: '❓ Important Qs' },
+  { id: 'pattern', label: '📊 Exam Pattern' },
+]
+
 export default function SubjectPage({ params }: { params: { id: string } }) {
+  const router = useRouter()
   const [subject, setSubject] = useState<Subject | null>(null)
   const [papers, setPapers] = useState<Paper[]>([])
   const [notes, setNotes] = useState<Note[]>([])
   const [purchases, setPurchases] = useState<string[]>([])
+  const [hasSubscription, setHasSubscription] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('pyq')
   const [loading, setLoading] = useState(true)
@@ -17,7 +29,27 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
   const [toast, setToast] = useState('')
 
   useEffect(() => {
-    async function fetchSubject() {
+    async function init() {
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+
+      if (user) {
+        // Fetch purchases
+        const { data: purcs } = await supabase.from('purchases').select('item_id').eq('user_id', user.id)
+        setPurchases((purcs || []).map((p: any) => p.item_id))
+
+        // Check subscription
+        const { data: sub } = await supabase
+          .from('subscriptions')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+          .gte('expires_at', new Date().toISOString())
+          .single()
+        setHasSubscription(!!sub)
+      }
+
+      // Fetch subject data
       const { data: sub } = await supabase.from('subjects').select('*').eq('id', params.id).single()
       setSubject(sub)
       const { data: paps } = await supabase.from('papers').select('*').eq('subject_id', params.id).eq('is_active', true).order('exam_year', { ascending: false })
@@ -26,17 +58,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
       setNotes(nts || [])
       setLoading(false)
     }
-
-    async function fetchPurchases(userId: string) {
-      const { data } = await supabase.from('purchases').select('item_id').eq('user_id', userId)
-      setPurchases((data || []).map((p: any) => p.item_id))
-    }
-
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUser(user)
-      if (user) fetchPurchases(user.id)
-    })
-    fetchSubject()
+    init()
   }, [params.id])
 
   function showToast(msg: string) {
@@ -45,7 +67,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
   }
 
   async function handleDownload(itemId: string, itemType: 'paper' | 'note') {
-    if (!user) { window.location.href = '/auth/login'; return }
+    if (!user) { router.push('/auth/login'); return }
 
     setPayLoading(itemId)
     try {
@@ -55,9 +77,8 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
 
       if (res.ok) {
         window.open(data.url, '_blank')
-        showToast('Downloading PDF...')
+        showToast('⬇ Opening PDF…')
       } else if (res.status === 403) {
-        // Need to purchase
         await initPayment(itemId, itemType, data.price)
       } else {
         showToast('❌ ' + (data.error || 'Something went wrong'))
@@ -69,10 +90,9 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
   }
 
   async function initPayment(itemId: string, itemType: string, amount: number) {
-    if (!user) { window.location.href = '/auth/login'; return }
+    if (!user) { router.push('/auth/login'); return }
 
     try {
-      // Create Razorpay order
       const res = await fetch('/api/payments/order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -81,18 +101,16 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
       const order = await res.json()
       if (!res.ok) throw new Error(order.error)
 
-      // Open Razorpay checkout
       openRazorpay({
         key: order.key,
         amount: order.amount,
         currency: order.currency,
         name: 'MedicoseBuddy',
-        description: subject?.name || 'BPT Study Material',
+        description: subject?.name || 'Study Material',
         order_id: order.order_id,
         prefill: { name: user.user_metadata?.full_name || '', email: user.email },
         theme: { color: '#06B6D4' },
         handler: async (response) => {
-          // Verify payment
           const verifyRes = await fetch('/api/payments/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -100,76 +118,102 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
           })
           if (verifyRes.ok) {
             setPurchases(p => [...p, itemId])
-            showToast('Payment successful. Content unlocked.')
+            showToast('✅ Payment successful — content unlocked!')
           }
         },
       })
     } catch (err: any) {
-      showToast('❌ Payment error: ' + err.message)
+      showToast('❌ ' + err.message)
     }
   }
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ color: 'var(--text3)', fontSize: 14 }}>Loading...</div>
+      <div className="min-h-screen bg-[#07090F]">
+        <Navbar />
+        <div className="flex items-center justify-center h-64">
+          <div className="w-6 h-6 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin" />
+        </div>
       </div>
     )
   }
 
-  if (!subject) return <div style={{ padding: 40, color: 'var(--text3)' }}>Subject not found</div>
+  if (!subject) {
+    return (
+      <div className="min-h-screen bg-[#07090F]">
+        <Navbar />
+        <div className="text-center py-20 text-slate-400">Subject not found.</div>
+      </div>
+    )
+  }
 
-  // Group papers by year
+  const canAccess = (itemId: string) => hasSubscription || purchases.includes(itemId)
   const years = Array.from(new Set(papers.map(p => p.exam_year))).sort((a, b) => b - a)
+  const filteredNotes = (type: string) => notes.filter(n => n.type === type)
 
-  const TABS = [
-    { id: 'pyq', label: '📄 PYQ Papers' },
-    { id: 'notes', label: '📖 Chapter Notes' },
-    { id: 'short', label: '📋 Short Notes' },
-    { id: 'imp', label: '❓ Important Qs' },
-    { id: 'pattern', label: '📊 Exam Pattern' },
-  ]
+  const DownloadBtn = ({ itemId, itemType, price, free }: { itemId: string; itemType: 'paper' | 'note'; price: number; free?: boolean }) => {
+    const accessible = canAccess(itemId)
+    if (accessible || free) {
+      return (
+        <button
+          onClick={() => handleDownload(itemId, itemType)}
+          disabled={payLoading === itemId}
+          className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 active:bg-emerald-500/30 transition-colors disabled:opacity-50"
+        >
+          {payLoading === itemId ? '…' : (free && !accessible ? '👁 Preview' : '⬇ Download')}
+        </button>
+      )
+    }
+    return (
+      <button
+        onClick={() => initPayment(itemId, itemType, price)}
+        disabled={payLoading === itemId}
+        className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-cyan-500 text-white hover:bg-cyan-400 active:bg-cyan-600 transition-colors disabled:opacity-50"
+      >
+        {payLoading === itemId ? '…' : `₹${price} Buy`}
+      </button>
+    )
+  }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)' }}>
+    <div className="min-h-screen bg-[#07090F] text-[#EEF2FF]">
+      <Navbar breadcrumb={subject.name} />
 
-      {/* Nav */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, height: 58, padding: '0 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border)', background: 'rgba(7,9,15,0.9)', backdropFilter: 'blur(18px)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }} onClick={() => window.location.href = '/'}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>🦴</div>
-          <span style={{ fontSize: 16, fontWeight: 800 }}>MedicoseBuddy</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text2)', fontWeight: 600 }}>
-          <span>{subject.icon}</span>
-          <span>{subject.name}</span>
-          <span style={{ color: 'var(--text3)' }}>·</span>
-          <span style={{ fontFamily: 'JetBrains Mono, monospace', color: '#06B6D4', fontSize: 11 }}>{subject.code}</span>
-        </div>
-      </nav>
-
-      <div style={{ maxWidth: 1000, margin: '0 auto', padding: '32px 24px' }}>
+      <div className="max-w-5xl mx-auto px-4 py-6">
 
         {/* Back */}
-        <button onClick={() => window.history.back()} style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '7px 13px', borderRadius: 9, background: 'var(--surface2)', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600, color: 'var(--text2)', fontFamily: 'Outfit, sans-serif', marginBottom: 22 }}>
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors mb-6"
+        >
           ← Back
         </button>
 
-        {/* Subject Header */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, marginBottom: 28, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 52 }}>{subject.icon}</div>
+        {/* Subject header */}
+        <div className="flex flex-col sm:flex-row sm:items-start gap-4 mb-7 pb-7 border-b border-white/[0.06]">
+          <div className="text-5xl sm:text-6xl flex-shrink-0">{subject.icon}</div>
           <div>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 10, color: 'var(--text3)', marginBottom: 3, fontWeight: 600 }}>{subject.code} · MP Medical Science University, Jabalpur</div>
-            <div style={{ fontSize: 24, fontWeight: 900, letterSpacing: -0.5, marginBottom: 4 }}>{subject.name}</div>
-            <div style={{ fontSize: 14, color: 'var(--text2)', marginBottom: 10 }}>{subject.description}</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div className="font-mono text-[10px] text-slate-500 mb-1 font-medium tracking-wider">
+              {subject.code} · MPMSU Jabalpur
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight mb-1">{subject.name}</h1>
+            <p className="text-sm text-slate-400 mb-3 leading-relaxed">{subject.description}</p>
+            <div className="flex flex-wrap gap-2">
               {[
                 { label: `Total: ${subject.total_marks}M`, hi: true },
-                { label: `Theory: ${subject.theory_marks}`, hi: false },
-                subject.practical_marks > 0 && { label: `Practical: ${subject.practical_marks}`, hi: false },
-                subject.viva_marks > 0 && { label: `Viva: ${subject.viva_marks}`, hi: false },
-                { label: `Internal: ${subject.internal_marks}`, hi: false },
+                { label: `Theory: ${subject.theory_marks}M` },
+                subject.practical_marks > 0 && { label: `Practical: ${subject.practical_marks}M` },
+                subject.viva_marks > 0 && { label: `Viva: ${subject.viva_marks}M` },
+                { label: `Internal: ${subject.internal_marks}M` },
               ].filter(Boolean).map((pill: any) => (
-                <span key={pill.label} style={{ padding: '3px 10px', borderRadius: 6, fontSize: 11, fontWeight: 700, background: pill.hi ? 'rgba(6,182,212,.1)' : 'var(--surface2)', color: pill.hi ? '#06B6D4' : 'var(--text3)' }}>
+                <span
+                  key={pill.label}
+                  className="px-2.5 py-1 rounded-lg text-[11px] font-bold"
+                  style={{
+                    background: pill.hi ? 'rgba(6,182,212,0.1)' : 'rgba(255,255,255,0.04)',
+                    color: pill.hi ? '#06B6D4' : '#4A5568',
+                  }}
+                >
                   {pill.label}
                 </span>
               ))}
@@ -177,11 +221,25 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 3, background: 'var(--surface2)', borderRadius: 11, padding: 4, width: 'fit-content', marginBottom: 26, flexWrap: 'wrap' }}>
+        {/* Subscription banner */}
+        {hasSubscription && (
+          <div className="mb-6 px-4 py-3 bg-emerald-500/[0.08] border border-emerald-500/20 rounded-xl text-sm text-emerald-400 font-medium">
+            ✅ Active subscription — all content unlocked
+          </div>
+        )}
+
+        {/* Tab bar — scrollable on mobile */}
+        <div className="flex gap-1 overflow-x-auto scrollbar-none -mx-4 px-4 mb-6 pb-1">
           {TABS.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              style={{ padding: '8px 15px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'Outfit, sans-serif', transition: 'all 0.17s', background: activeTab === tab.id ? 'var(--surface)' : 'transparent', color: activeTab === tab.id ? 'var(--text)' : 'var(--text3)', boxShadow: activeTab === tab.id ? '0 2px 10px rgba(0,0,0,.4)' : 'none' }}>
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap"
+              style={{
+                background: activeTab === tab.id ? '#1C2333' : 'transparent',
+                color: activeTab === tab.id ? '#EEF2FF' : '#4A5568',
+              }}
+            >
               {tab.label}
             </button>
           ))}
@@ -189,159 +247,122 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
 
         {/* ── PYQ TAB ── */}
         {activeTab === 'pyq' && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(290px,1fr))', gap: 16 }}>
-            {years.length === 0 && (
-              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14 }}>PYQ papers have not been uploaded yet.</div>
+          <div>
+            {years.length === 0 ? (
+              <EmptyState msg="PYQ papers have not been uploaded yet." />
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {years.map(yr => {
+                  const question = papers.find(p => p.exam_year === yr && p.type === 'question')
+                  const solution = papers.find(p => p.exam_year === yr && p.type === 'solution')
+                  return (
+                    <div key={yr} className="bg-[#111827] border border-white/[0.06] rounded-2xl overflow-hidden">
+                      <div className="h-[2px]" style={{ background: `linear-gradient(90deg,${subject.color},transparent)` }} />
+                      <div className="p-5">
+                        <div className="flex items-start justify-between mb-1">
+                          <div className="font-mono text-3xl font-black" style={{ color: subject.color }}>{yr}</div>
+                          {question?.is_free_preview && (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                              FREE PREVIEW
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-slate-500 mb-4">Annual Examination · MPMSU Jabalpur</div>
+
+                        {/* Question row */}
+                        <div className="flex items-center gap-3 py-3 border-b border-white/[0.05]">
+                          <span className="text-lg">📄</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold">Question Paper</div>
+                            <div className="text-[10px] text-slate-500">100 marks · ~3 pages</div>
+                          </div>
+                          {question?.file_path
+                            ? <DownloadBtn itemId={question.id} itemType="paper" price={question.price} free={question.is_free_preview} />
+                            : <span className="text-[10px] text-slate-600 italic">Coming soon</span>
+                          }
+                        </div>
+
+                        {/* Solution row */}
+                        <div className="flex items-center gap-3 pt-3">
+                          <span className="text-lg">✅</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-semibold">Complete Solution</div>
+                            <div className="text-[10px] text-slate-500">Detailed answers · ~8 pages</div>
+                          </div>
+                          {solution?.file_path
+                            ? <DownloadBtn itemId={solution.id} itemType="paper" price={solution.price} />
+                            : <span className="text-[10px] text-slate-600 italic">Coming soon</span>
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             )}
-            {years.map(yr => {
-              const question = papers.find(p => p.exam_year === yr && p.type === 'question')
-              const solution = papers.find(p => p.exam_year === yr && p.type === 'solution')
-
-              return (
-                <div key={yr} style={{ background: 'var(--surface)', border: '1.5px solid var(--border)', borderRadius: 20, overflow: 'hidden', transition: 'all 0.25s' }}>
-                  <div style={{ height: 3, background: `linear-gradient(90deg,${subject.color},transparent)` }} />
-                  <div style={{ padding: 20 }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 40, fontWeight: 700, color: subject.color, lineHeight: 1 }}>{yr}</div>
-                      {question?.is_free_preview && <span style={{ padding: '3px 9px', borderRadius: 20, fontSize: 9, fontWeight: 800, background: 'rgba(16,185,129,.12)', color: '#10B981', border: '1px solid rgba(16,185,129,.2)' }}>1 PAGE FREE</span>}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 14 }}>Annual Examination · MPMSU Jabalpur</div>
-
-                    {/* Question Paper Row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 18 }}>📄</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Question Paper</div>
-                        <div style={{ fontSize: 10, color: 'var(--text3)' }}>100 marks · Theory · {question?.pages || '~3'} pages</div>
-                      </div>
-                      {question?.file_path ? (
-                        purchases.includes(question.id) ? (
-                          <button onClick={() => handleDownload(question.id, 'paper')} disabled={payLoading === question.id}
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: 'rgba(16,185,129,.15)', color: '#10B981', fontFamily: 'Outfit, sans-serif' }}>
-                            ⬇ Download
-                          </button>
-                        ) : question.is_free_preview ? (
-                          <button onClick={() => handleDownload(question.id, 'paper')}
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: 'rgba(16,185,129,.15)', color: '#10B981', fontFamily: 'Outfit, sans-serif' }}>
-                            👁 Free Preview
-                          </button>
-                        ) : (
-                          <button onClick={() => initPayment(question.id, 'paper', question.price)} disabled={payLoading === question.id}
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: '#06B6D4', color: 'white', fontFamily: 'Outfit, sans-serif' }}>
-                            {payLoading === question.id ? '...' : `₹${question.price} Buy`}
-                          </button>
-                        )
-                      ) : (
-                        <span style={{ fontSize: 10, color: 'var(--text3)', fontStyle: 'italic' }}>Coming soon</span>
-                      )}
-                    </div>
-
-                    {/* Solution Row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0' }}>
-                      <span style={{ fontSize: 18 }}>✅</span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>Complete Solution</div>
-                        <div style={{ fontSize: 10, color: 'var(--text3)' }}>Detailed answers · {solution?.pages || '~8'} pages</div>
-                      </div>
-                      {solution?.file_path ? (
-                        purchases.includes(solution.id) ? (
-                          <button onClick={() => handleDownload(solution.id, 'paper')} disabled={payLoading === solution.id}
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: 'rgba(16,185,129,.15)', color: '#10B981', fontFamily: 'Outfit, sans-serif' }}>
-                            ⬇ Download
-                          </button>
-                        ) : (
-                          <button onClick={() => initPayment(solution.id, 'paper', solution.price)} disabled={payLoading === solution.id}
-                            style={{ padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, border: 'none', cursor: 'pointer', background: '#F59E0B', color: 'white', fontFamily: 'Outfit, sans-serif' }}>
-                            {payLoading === solution.id ? '...' : `₹${solution.price} Solution`}
-                          </button>
-                        )
-                      ) : (
-                        <span style={{ fontSize: 10, color: 'var(--text3)', fontStyle: 'italic' }}>Coming soon</span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
           </div>
         )}
 
-        {/* ── NOTES TAB ── */}
+        {/* ── NOTES TABS ── */}
         {(activeTab === 'notes' || activeTab === 'short' || activeTab === 'imp') && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {notes.filter(n =>
-              activeTab === 'notes' ? n.type === 'chapter_notes' :
-              activeTab === 'short' ? n.type === 'short_notes' : n.type === 'important_qs'
-            ).map((note, i) => {
-              const bought = purchases.includes(note.id)
-              return (
-                <div key={note.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 11, color: 'var(--text3)', minWidth: 24, paddingTop: 2, fontWeight: 600 }}>{String(i + 1).padStart(2, '0')}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{note.title}</div>
-                    <div style={{ display: 'flex', gap: 5 }}>
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)', color: 'var(--text3)' }}>{note.pages || '~'} pages</span>
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)', color: 'var(--text3)' }}>PDF</span>
+          <div className="flex flex-col gap-2">
+            {(() => {
+              const type = activeTab === 'notes' ? 'chapter_notes' : activeTab === 'short' ? 'short_notes' : 'important_qs'
+              const list = filteredNotes(type)
+              if (list.length === 0) return <EmptyState msg="This content has not been uploaded yet." />
+              return list.map((note, i) => (
+                <div key={note.id} className="bg-[#111827] border border-white/[0.06] rounded-xl px-4 py-3.5 flex items-center gap-3">
+                  <span className="font-mono text-[11px] text-slate-600 font-semibold w-5 flex-shrink-0 text-right">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold leading-snug">{note.title}</div>
+                    <div className="flex gap-1.5 mt-1">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.04] text-slate-500">{note.pages || '~'} pages</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-white/[0.04] text-slate-500">PDF</span>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: 7, alignItems: 'center' }}>
-                    {note.file_path ? (
-                      bought ? (
-                        <button onClick={() => handleDownload(note.id, 'note')}
-                          style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer', background: 'rgba(16,185,129,.15)', color: '#10B981', fontFamily: 'Outfit, sans-serif' }}>
-                          ⬇ Download
-                        </button>
-                      ) : (
-                        <button onClick={() => initPayment(note.id, 'note', note.price)}
-                          style={{ padding: '7px 13px', borderRadius: 9, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer', background: '#F59E0B', color: 'white', fontFamily: 'Outfit, sans-serif' }}>
-                          ₹{note.price} Buy
-                        </button>
-                      )
-                    ) : (
-                      <span style={{ fontSize: 11, color: 'var(--text3)', fontStyle: 'italic' }}>Coming soon</span>
-                    )}
-                  </div>
+                  {note.file_path
+                    ? <DownloadBtn itemId={note.id} itemType="note" price={note.price} />
+                    : <span className="text-[10px] text-slate-600 italic">Coming soon</span>
+                  }
                 </div>
-              )
-            })}
-            {notes.filter(n => activeTab === 'notes' ? n.type === 'chapter_notes' : activeTab === 'short' ? n.type === 'short_notes' : n.type === 'important_qs').length === 0 && (
-              <div style={{ padding: 40, color: 'var(--text3)', fontSize: 14, textAlign: 'center' }}>This content has not been uploaded yet.</div>
-            )}
+              ))
+            })()}
           </div>
         )}
 
         {/* ── EXAM PATTERN TAB ── */}
         {activeTab === 'pattern' && (
-          <div style={{ maxWidth: 600 }}>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '22px 24px', marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 14 }}>📊 Theory Exam Pattern — {subject.theory_marks} Marks (University)</div>
+          <div className="max-w-xl flex flex-col gap-4">
+            <div className="bg-[#111827] border border-white/[0.06] rounded-xl p-5">
+              <div className="text-sm font-bold mb-4">📊 Theory Exam — {subject.theory_marks} Marks (University)</div>
               {[
                 { type: 'Very Short Answer (50–60 words)', count: 10, each: 2, total: 20 },
                 { type: 'Short Answer (250–300 words)', count: 5, each: 10, total: 50 },
-                { type: 'Essay Type (450–500 words)', count: 2, each: 15, total: 30 },
-              ].map((row, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '7px 0', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ flex: 1, color: 'var(--text2)' }}>{row.type}</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, fontSize: 12, minWidth: 20, textAlign: 'center' }}>×{row.count}</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, color: '#06B6D4', fontWeight: 600, minWidth: 60 }}>{row.each} marks</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 700, color: '#10B981', minWidth: 30, textAlign: 'right' }}>{row.total}</span>
+                { type: 'Essay (450–500 words)', count: 2, each: 15, total: 30 },
+              ].map(row => (
+                <div key={row.type} className="flex items-center gap-3 py-2.5 border-b border-white/[0.05] text-sm">
+                  <span className="flex-1 text-slate-400 text-xs">{row.type}</span>
+                  <span className="font-mono text-xs text-slate-500">×{row.count}</span>
+                  <span className="font-mono text-xs text-cyan-400 font-semibold w-14 text-right">{row.each}M each</span>
+                  <span className="font-mono text-xs text-emerald-400 font-bold w-8 text-right">{row.total}</span>
                 </div>
               ))}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, padding: '10px 0', fontWeight: 700 }}>
-                <span style={{ flex: 1 }}>Total University Theory</span>
-                <span style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 16, color: '#06B6D4' }}>100</span>
+              <div className="flex items-center gap-3 pt-3 text-sm font-bold">
+                <span className="flex-1">Total Theory</span>
+                <span className="font-mono text-cyan-400 text-base">100M</span>
               </div>
             </div>
-            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, padding: '22px 24px' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>📝 Internal Assessment</div>
-              <div style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.9 }}>
-                • Theory Internal: <b>{Math.min(subject.internal_marks, 20)} marks</b><br />
-                {subject.practical_marks > 0 && <>• Practical Internal: <b>20 marks</b><br /></>}
-                {subject.viva_marks > 0 && <>• Viva: <b>{subject.viva_marks} marks</b> (University)<br /></>}
-                <span style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6, display: 'block' }}>
-                  A minimum of 50% in Theory + Viva is required to pass.
-                </span>
+
+            <div className="bg-[#111827] border border-white/[0.06] rounded-xl p-5">
+              <div className="text-sm font-bold mb-3">📝 Internal Assessment</div>
+              <div className="text-sm text-slate-400 leading-8">
+                Theory Internal: <span className="text-slate-200 font-semibold">{Math.min(subject.internal_marks, 20)}M</span>
+                {subject.practical_marks > 0 && <><br />Practical Internal: <span className="text-slate-200 font-semibold">20M</span></>}
+                {subject.viva_marks > 0 && <><br />Viva (University): <span className="text-slate-200 font-semibold">{subject.viva_marks}M</span></>}
               </div>
+              <p className="text-xs text-slate-500 mt-3">Minimum 50% in Theory + Viva required to pass.</p>
             </div>
           </div>
         )}
@@ -349,10 +370,18 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
 
       {/* Toast */}
       {toast && (
-        <div style={{ position: 'fixed', bottom: 22, left: '50%', transform: 'translateX(-50%)', zIndex: 300, background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 12, padding: '12px 20px', fontSize: 13, fontWeight: 600, color: 'var(--text)', boxShadow: '0 8px 32px rgba(0,0,0,.3)', whiteSpace: 'nowrap' }}>
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 bg-[#111827] border border-white/10 rounded-xl px-5 py-3 text-sm font-semibold shadow-2xl whitespace-nowrap animate-fade-in">
           {toast}
         </div>
       )}
+    </div>
+  )
+}
+
+function EmptyState({ msg }: { msg: string }) {
+  return (
+    <div className="bg-[#111827] border border-white/[0.06] rounded-xl p-8 text-center text-slate-500 text-sm">
+      {msg}
     </div>
   )
 }
