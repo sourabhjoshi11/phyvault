@@ -1,808 +1,793 @@
-"use client";
+'use client'
 
-import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { useState, useEffect, useRef } from 'react'
+import { supabase } from '@/lib/supabase'
 
-// ── Types ──
 interface Subject {
-  id: string;
-  name: string;
-  code: string;
-  year: string;
-  icon: string;
-  color: string;
-  total_marks: number;
-  is_active: boolean;
+  id: string; name: string; code: string; year: string
+  icon: string; color: string; total_marks: number; is_active: boolean
 }
 interface Paper {
-  id: string;
-  subject_id: string;
-  exam_year: number;
-  type: string;
-  file_path: string | null;
-  price: number;
-  is_free_preview: boolean;
-  is_active: boolean;
-  downloads: number;
+  id: string; subject_id: string; exam_year: number; type: string
+  file_path: string | null; price: number; is_free_preview: boolean
+  is_active: boolean; downloads: number
+}
+interface Note {
+  id: string; subject_id: string; title: string; type: string
+  file_path: string | null; price: number; is_active: boolean; created_at: string
 }
 interface Order {
-  id: string;
-  user_id: string;
-  amount: number;
-  status: string;
-  item_type: string;
-  created_at: string;
+  id: string; user_id: string; amount: number; status: string
+  item_type: string; created_at: string
 }
 interface Profile {
-  id: string;
-  email: string;
-  full_name: string;
-  created_at: string;
+  id: string; email: string; full_name: string; created_at: string
 }
 
 const NAV_ITEMS = [
-  { id: "dashboard", icon: "📊", label: "Dashboard" },
-  { id: "upload", icon: "☁️", label: "Upload PDFs" },
-  { id: "papers", icon: "📄", label: "PYQ Papers" },
-  { id: "subjects", icon: "📚", label: "Subjects" },
-  { id: "users", icon: "👥", label: "Users" },
-  { id: "orders", icon: "🧾", label: "Orders" },
-  { id: "pricing", icon: "💰", label: "Pricing" },
-  { id: "settings", icon: "⚙️", label: "Settings" },
-];
+  { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+  { id: 'upload', icon: '☁️', label: 'Upload PDFs' },
+  { id: 'papers', icon: '📄', label: 'PYQ Papers' },
+  { id: 'notes', icon: '📝', label: 'Notes' },
+  { id: 'subjects', icon: '📚', label: 'Subjects' },
+  { id: 'users', icon: '👥', label: 'Users' },
+  { id: 'orders', icon: '🧾', label: 'Orders' },
+  { id: 'pricing', icon: '💰', label: 'Pricing' },
+  { id: 'settings', icon: '⚙️', label: 'Settings' },
+]
 
 export default function AdminPage() {
-  const [authed, setAuthed] = useState(false);
-  const [authLoading, setAuthLoading] = useState(true);
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPass, setLoginPass] = useState("");
-  const [loginErr, setLoginErr] = useState("");
-  const [activeTab, setActiveTab] = useState("dashboard");
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [papers, setPapers] = useState<Paper[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [users, setUsers] = useState<Profile[]>([]);
-  const [prices, setPrices] = useState<Record<string, number>>({});
-  const [toast, setToast] = useState("");
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [uploading, setUploading] = useState(false);
-  const [uploadResult, setUploadResult] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [authed, setAuthed] = useState(false)
+  const [authLoading, setAuthLoading] = useState(true)
+  const [loginEmail, setLoginEmail] = useState('')
+  const [loginPass, setLoginPass] = useState('')
+  const [loginErr, setLoginErr] = useState('')
+  const [activeTab, setActiveTab] = useState('dashboard')
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  // Upload form state
-  const [upSubject, setUpSubject] = useState("");
-  const [upYear, setUpYear] = useState("2024");
-  const [upType, setUpType] = useState("question");
-  const [upPrice, setUpPrice] = useState("29");
-  const [upFree, setUpFree] = useState(false);
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [papers, setPapers] = useState<Paper[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
+  const [orders, setOrders] = useState<Order[]>([])
+  const [users, setUsers] = useState<Profile[]>([])
+  const [prices, setPrices] = useState<Record<string, number>>({})
+  const [toast, setToast] = useState('')
+  const [uploadProgress, setUploadProgress] = useState(0)
+  const [uploading, setUploading] = useState(false)
+  const [uploadResult, setUploadResult] = useState<string | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  // Upload form
+  const [upCategory, setUpCategory] = useState<'paper' | 'note'>('paper')
+  const [upSubject, setUpSubject] = useState('')
+  const [upYear, setUpYear] = useState('2024')
+  const [upType, setUpType] = useState('question')
+  const [upNoteType, setUpNoteType] = useState('chapter_notes')
+  const [upTitle, setUpTitle] = useState('')
+  const [upPrice, setUpPrice] = useState('29')
+  const [upFree, setUpFree] = useState(false)
+
+  // Add subject form
+  const [showAddSubject, setShowAddSubject] = useState(false)
+  const [newSubName, setNewSubName] = useState('')
+  const [newSubCode, setNewSubCode] = useState('')
+  const [newSubYear, setNewSubYear] = useState('y1')
+  const [newSubIcon, setNewSubIcon] = useState('📗')
+  const [newSubColor, setNewSubColor] = useState('#06B6D4')
+  const [newSubMarks, setNewSubMarks] = useState('100')
+  const [addingSubject, setAddingSubject] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user && user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-        setAuthed(true);
-        fetchAll();
+        setAuthed(true)
+        fetchAll()
       } else if (user) {
-        setLoginErr("Please sign in with the admin account.");
+        setLoginErr('Please sign in with the admin account.')
       }
-      setAuthLoading(false);
-    });
-  }, []);
+      setAuthLoading(false)
+    })
+  }, [])
 
   async function fetchAll() {
     const [
-      { data: subs },
-      { data: paps },
-      { data: ords },
-      { data: usrs },
-      { data: prs },
+      { data: subs }, { data: paps }, { data: nts },
+      { data: ords }, { data: usrs }, { data: prs },
     ] = await Promise.all([
-      supabase.from("subjects").select("*").order("year").order("sort_order"),
-      supabase
-        .from("papers")
-        .select("*")
-        .order("exam_year", { ascending: false }),
-      supabase
-        .from("orders")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false }),
-      supabase.from("prices").select("*"),
-    ]);
-    setSubjects(subs || []);
-    setPapers(paps || []);
-    setOrders(ords || []);
-    setUsers(usrs || []);
-    const priceMap: Record<string, number> = {};
-    (prs || []).forEach((p: any) => {
-      priceMap[p.key] = p.value;
-    });
-    setPrices(priceMap);
-    if (subs && subs.length > 0) setUpSubject(subs[0].id);
+      supabase.from('subjects').select('*').order('year').order('sort_order'),
+      supabase.from('papers').select('*').order('exam_year', { ascending: false }),
+      supabase.from('notes').select('*').order('created_at', { ascending: false }),
+      supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+      supabase.from('prices').select('*'),
+    ])
+    setSubjects(subs || [])
+    setPapers(paps || [])
+    setNotes(nts || [])
+    setOrders(ords || [])
+    setUsers(usrs || [])
+    const priceMap: Record<string, number> = {}
+    ;(prs || []).forEach((p: any) => { priceMap[p.key] = p.value })
+    setPrices(priceMap)
+    if (subs && subs.length > 0) setUpSubject(subs[0].id)
   }
 
   function showToast(msg: string) {
-    setToast(msg);
-    setTimeout(() => setToast(""), 3000);
+    setToast(msg)
+    setTimeout(() => setToast(''), 3000)
   }
 
-  // ── LOGIN ──
   async function doLogin(e: React.FormEvent) {
-    e.preventDefault();
-    setLoginErr("");
-    const { error } = await supabase.auth.signInWithPassword({
-      email: loginEmail,
-      password: loginPass,
-    });
-    if (error) {
-      setLoginErr(error.message);
-      return;
-    }
-
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
+    e.preventDefault()
+    setLoginErr('')
+    const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPass })
+    if (error) { setLoginErr(error.message); return }
+    const { data: { user } } = await supabase.auth.getUser()
     if (user?.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-      await supabase.auth.signOut();
-      setLoginErr("Please sign in with the admin account.");
-      setAuthed(false);
-      return;
+      await supabase.auth.signOut()
+      setLoginErr('Please sign in with the admin account.')
+      return
     }
-
-    setAuthed(true);
-    fetchAll();
+    setAuthed(true)
+    fetchAll()
   }
 
-  // ── UPLOAD ──
   async function handleUpload(file: File) {
-    if (!file.name.endsWith(".pdf")) {
-      showToast("Only PDF files are allowed");
-      return;
-    }
-    if (!upSubject) {
-      showToast("Please select a subject");
-      return;
-    }
+    if (!file.name.endsWith('.pdf')) { showToast('Only PDF files are allowed'); return }
+    if (!upSubject) { showToast('Please select a subject'); return }
+    if (upCategory === 'note' && !upTitle.trim()) { showToast('Please enter a title'); return }
 
-    setUploading(true);
-    setUploadProgress(0);
-    setUploadResult(null);
+    setUploading(true)
+    setUploadProgress(0)
+    setUploadResult(null)
+
+    const interval = setInterval(() => setUploadProgress(p => Math.min(p + 15, 85)), 200)
 
     try {
-      const subj = subjects.find((s) => s.id === upSubject);
-      const subjCode =
-        subj?.code?.toLowerCase().replace("bpt-", "") || "unknown";
-      const filePath = `papers/${subjCode}/${upYear}_${upType}.pdf`;
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('category', upCategory)
+      fd.append('subject_id', upSubject)
+      fd.append('price', upPrice)
+      if (upCategory === 'paper') {
+        fd.append('exam_year', upYear)
+        fd.append('type', upType)
+        fd.append('is_free_preview', String(upFree))
+      } else {
+        fd.append('note_type', upNoteType)
+        fd.append('title', upTitle)
+      }
 
-      // Simulate progress
-      const interval = setInterval(() => {
-        setUploadProgress((p) => Math.min(p + 15, 85));
-      }, 200);
+      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+      const ct = res.headers.get('content-type') || ''
+      const data = ct.includes('application/json') ? await res.json() : { error: await res.text() }
 
-      // Upload to Supabase Storage via API
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("subject_id", upSubject);
-      formData.append("exam_year", upYear);
-      formData.append("type", upType);
-      formData.append("price", upPrice);
-      formData.append("is_free_preview", String(upFree));
-
-      const res = await fetch("/api/admin/upload", {
-        method: "POST",
-        body: formData,
-      });
-      const contentType = res.headers.get("content-type") || "";
-      const data = contentType.includes("application/json")
-        ? await res.json()
-        : { error: await res.text() };
-
-      clearInterval(interval);
-      setUploadProgress(100);
+      clearInterval(interval)
+      setUploadProgress(100)
 
       if (res.ok) {
-        setUploadResult(`✅ Uploaded: ${filePath}`);
-        showToast("✅ PDF upload successful!");
-        fetchAll();
+        setUploadResult(`✅ ${data.message}`)
+        showToast(`✅ ${data.message}`)
+        fetchAll()
       } else {
-        setUploadResult(`❌ Error: ${data.error}`);
-        showToast("❌ Upload failed: " + data.error);
+        setUploadResult(`❌ Error: ${data.error}`)
+        showToast(`❌ Upload failed: ${data.error}`)
       }
     } catch (err: any) {
-      setUploadResult("❌ Error: " + err.message);
-      showToast("❌ Upload failed");
+      clearInterval(interval)
+      setUploadResult(`❌ Error: ${err.message}`)
+      showToast('❌ Upload failed')
     }
-    setUploading(false);
+    setUploading(false)
   }
 
-  // ── SAVE PRICES ──
   async function savePrice(key: string, value: number) {
-    await supabase.from("prices").upsert({ key, value });
-    showToast(`✅ Price updated: ₹${value}`);
+    await supabase.from('prices').upsert({ key, value })
+    showToast(`✅ Price updated: ₹${value}`)
   }
 
-  // ── TOGGLE PAPER ACTIVE ──
   async function togglePaper(id: string, current: boolean) {
-    await supabase.from("papers").update({ is_active: !current }).eq("id", id);
-    setPapers((p) =>
-      p.map((x) => (x.id === id ? { ...x, is_active: !current } : x)),
-    );
-    showToast(`${!current ? "✅ Activated" : "⏸ Hidden"}`);
+    await supabase.from('papers').update({ is_active: !current }).eq('id', id)
+    setPapers(p => p.map(x => x.id === id ? { ...x, is_active: !current } : x))
+    showToast(current ? '⏸ Paper hidden' : '✅ Paper activated')
   }
 
-  // ── TOGGLE SUBJECT ──
+  async function toggleNote(id: string, current: boolean) {
+    await supabase.from('notes').update({ is_active: !current }).eq('id', id)
+    setNotes(n => n.map(x => x.id === id ? { ...x, is_active: !current } : x))
+    showToast(current ? '⏸ Note hidden' : '✅ Note activated')
+  }
+
   async function toggleSubject(id: string, current: boolean) {
-    await supabase
-      .from("subjects")
-      .update({ is_active: !current })
-      .eq("id", id);
-    setSubjects((s) =>
-      s.map((x) => (x.id === id ? { ...x, is_active: !current } : x)),
-    );
-    showToast(`${!current ? "✅ Subject activated" : "⏸ Subject hidden"}`);
+    await supabase.from('subjects').update({ is_active: !current }).eq('id', id)
+    setSubjects(s => s.map(x => x.id === id ? { ...x, is_active: !current } : x))
+    showToast(current ? '⏸ Subject hidden' : '✅ Subject activated')
   }
 
-  const totalRevenue = orders
-    .filter((o) => o.status === "success")
-    .reduce((sum, o) => sum + o.amount, 0);
-  const todayOrders = orders.filter(
-    (o) => new Date(o.created_at).toDateString() === new Date().toDateString(),
-  );
+  async function addSubject(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newSubName || !newSubCode) return
+    setAddingSubject(true)
+    const { error } = await supabase.from('subjects').insert({
+      name: newSubName,
+      code: newSubCode.toUpperCase(),
+      year: newSubYear,
+      icon: newSubIcon,
+      color: newSubColor,
+      total_marks: parseInt(newSubMarks) || 100,
+      is_active: true,
+    })
+    setAddingSubject(false)
+    if (error) { showToast(`❌ ${error.message}`); return }
+    showToast('✅ Subject added!')
+    setShowAddSubject(false)
+    setNewSubName(''); setNewSubCode(''); setNewSubYear('y1')
+    setNewSubIcon('📗'); setNewSubColor('#06B6D4'); setNewSubMarks('100')
+    fetchAll()
+  }
 
-  // ── STYLES ──
-  const S = {
-    page: {
-      minHeight: "100vh",
-      background: "#07090F",
-      color: "#EEF2FF",
-      display: "flex",
-      fontFamily: "Outfit, sans-serif",
-    } as React.CSSProperties,
-    sidebar: {
-      width: 220,
-      background: "#111827",
-      borderRight: "1px solid rgba(255,255,255,0.06)",
-      display: "flex",
-      flexDirection: "column" as const,
-      position: "fixed" as const,
-      left: 0,
-      top: 0,
-      bottom: 0,
-      zIndex: 40,
-    },
-    main: { marginLeft: 220, flex: 1, minHeight: "100vh" },
-    topbar: {
-      position: "sticky" as const,
-      top: 0,
-      zIndex: 30,
-      height: 56,
-      padding: "0 24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-      background: "rgba(7,9,15,0.9)",
-      backdropFilter: "blur(16px)",
-    },
-    card: {
-      background: "#111827",
-      border: "1px solid rgba(255,255,255,0.06)",
-      borderRadius: 14,
-      overflow: "hidden",
-      marginBottom: 16,
-    },
-    cardHead: {
-      padding: "16px 20px",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    cardBody: { padding: 20 },
-    table: { width: "100%", borderCollapse: "collapse" as const },
-    th: {
-      textAlign: "left" as const,
-      fontSize: 10,
-      fontWeight: 700,
-      color: "#4A5568",
-      textTransform: "uppercase" as const,
-      letterSpacing: 1,
-      padding: "0 14px 10px",
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-    },
-    td: {
-      padding: "12px 14px",
-      fontSize: 13,
-      borderBottom: "1px solid rgba(255,255,255,0.04)",
-      verticalAlign: "middle" as const,
-    },
-    input: {
-      width: "100%",
-      padding: "9px 12px",
-      background: "#1C2333",
-      border: "1.5px solid rgba(255,255,255,0.1)",
-      borderRadius: 9,
-      color: "#EEF2FF",
-      fontFamily: "Outfit, sans-serif",
-      fontSize: 13,
-      outline: "none",
-    },
-    select: {
-      width: "100%",
-      padding: "9px 12px",
-      background: "#1C2333",
-      border: "1.5px solid rgba(255,255,255,0.1)",
-      borderRadius: 9,
-      color: "#EEF2FF",
-      fontFamily: "Outfit, sans-serif",
-      fontSize: 13,
-      outline: "none",
-    },
-    btnPrimary: {
-      padding: "8px 16px",
-      borderRadius: 9,
-      fontSize: 12,
-      fontWeight: 700,
-      border: "none",
-      cursor: "pointer",
-      background: "#06B6D4",
-      color: "white",
-      fontFamily: "Outfit, sans-serif",
-    },
-    btnDanger: {
-      padding: "6px 12px",
-      borderRadius: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      border: "none",
-      cursor: "pointer",
-      background: "rgba(239,68,68,.1)",
-      color: "#EF4444",
-      fontFamily: "Outfit, sans-serif",
-    },
-    btnGhost: {
-      padding: "6px 12px",
-      borderRadius: 8,
-      fontSize: 11,
-      fontWeight: 700,
-      border: "1px solid rgba(255,255,255,0.1)",
-      cursor: "pointer",
-      background: "transparent",
-      color: "#94A3B8",
-      fontFamily: "Outfit, sans-serif",
-    },
-    label: {
-      display: "block",
-      fontSize: 10,
-      fontWeight: 700,
-      color: "#4A5568",
-      marginBottom: 5,
-      textTransform: "uppercase" as const,
-      letterSpacing: 1,
-    },
-    badge: (color: string, bg: string) => ({
-      display: "inline-flex",
-      alignItems: "center",
-      padding: "2px 8px",
-      borderRadius: 20,
-      fontSize: 10,
-      fontWeight: 700,
-      background: bg,
-      color,
-    }),
-  };
+  const totalRevenue = orders.filter(o => o.status === 'success').reduce((s, o) => s + o.amount, 0)
+  const todayOrders = orders.filter(o => new Date(o.created_at).toDateString() === new Date().toDateString())
 
-  // ── LOGIN SCREEN ──
-  if (authLoading)
+  function navClick(id: string) {
+    setActiveTab(id)
+    setSidebarOpen(false)
+  }
+
+  if (authLoading) {
     return (
-      <div
-        style={{ ...S.page, alignItems: "center", justifyContent: "center" }}
-      >
-        <div style={{ color: "#4A5568" }}>Loading...</div>
+      <div className="min-h-screen bg-[#07090F] flex items-center justify-center">
+        <div className="text-slate-500">Loading...</div>
       </div>
-    );
+    )
+  }
 
-  if (!authed)
+  if (!authed) {
     return (
-      <div
-        style={{ ...S.page, alignItems: "center", justifyContent: "center" }}
-      >
-        <div
-          style={{
-            background: "#111827",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 22,
-            padding: 36,
-            width: "100%",
-            maxWidth: 380,
-          }}
-        >
-          <div
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: 13,
-              background: "linear-gradient(135deg,#06B6D4,#10B981)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 22,
-              margin: "0 auto 18px",
-            }}
-          >
-            🦴
-          </div>
-          <h1
-            style={{
-              fontSize: 22,
-              fontWeight: 900,
-              textAlign: "center",
-              marginBottom: 4,
-            }}
-          >
-            Admin Panel
-          </h1>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#4A5568",
-              textAlign: "center",
-              marginBottom: 24,
-            }}
-          >
-            MedicoseBuddy — Secure Access
-          </p>
+      <div className="min-h-screen bg-[#07090F] flex items-center justify-center p-4">
+        <div className="bg-[#111827] border border-white/10 rounded-2xl p-8 w-full max-w-sm">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-2xl mx-auto mb-4">🩺</div>
+          <h1 className="text-xl font-black text-center text-white mb-1">Admin Panel</h1>
+          <p className="text-sm text-slate-500 text-center mb-6">MedicoseBuddy — Secure Access</p>
           {loginErr && (
-            <div
-              style={{
-                padding: "9px 12px",
-                background: "rgba(239,68,68,.08)",
-                border: "1px solid rgba(239,68,68,.2)",
-                borderRadius: 8,
-                fontSize: 13,
-                color: "#EF4444",
-                marginBottom: 12,
-              }}
-            >
-              ⚠️ {loginErr}
-            </div>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 text-sm text-red-400 mb-4">⚠️ {loginErr}</div>
           )}
-          <form onSubmit={doLogin}>
-            <div style={{ marginBottom: 12 }}>
-              <label style={S.label}>Email</label>
-              <input
-                type="email"
-                required
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
+          <form onSubmit={doLogin} className="space-y-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Email</label>
+              <input type="email" required value={loginEmail} onChange={e => setLoginEmail(e.target.value)}
                 placeholder="admin@email.com"
-                style={S.input}
-              />
+                className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
             </div>
-            <div style={{ marginBottom: 16 }}>
-              <label style={S.label}>Password</label>
-              <input
-                type="password"
-                required
-                value={loginPass}
-                onChange={(e) => setLoginPass(e.target.value)}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Password</label>
+              <input type="password" required value={loginPass} onChange={e => setLoginPass(e.target.value)}
                 placeholder="••••••••"
-                style={S.input}
-              />
+                className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-cyan-500/50" />
             </div>
-            <button
-              type="submit"
-              style={{
-                ...S.btnPrimary,
-                width: "100%",
-                padding: 12,
-                fontSize: 14,
-              }}
-            >
+            <button type="submit" className="w-full bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2.5 rounded-lg text-sm transition-colors">
               Login →
             </button>
           </form>
         </div>
       </div>
-    );
+    )
+  }
 
-  // ── MAIN ADMIN UI ──
   return (
-    <div style={S.page}>
-      {/* SIDEBAR */}
-      <div style={S.sidebar}>
-        <div
-          style={{
-            padding: "18px 16px 14px",
-            borderBottom: "1px solid rgba(255,255,255,0.06)",
-            display: "flex",
-            alignItems: "center",
-            gap: 9,
-          }}
-        >
-          <div
-            style={{
-              width: 30,
-              height: 30,
-              borderRadius: 8,
-              background: "linear-gradient(135deg,#06B6D4,#10B981)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 14,
-            }}
-          >
-            🦴
-          </div>
+    <div className="min-h-screen bg-[#07090F] text-slate-200 flex" style={{ fontFamily: 'Outfit, sans-serif' }}>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/60 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Sidebar */}
+      <aside className={`fixed top-0 left-0 bottom-0 w-56 bg-[#111827] border-r border-white/[0.06] z-40 flex flex-col transition-transform duration-200
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="px-4 py-4 border-b border-white/[0.06] flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-sm">🩺</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 800 }}>MedicoseBuddy</div>
-            <div
-              style={{
-                fontSize: 9,
-                color: "#06B6D4",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: 1,
-              }}
-            >
-              Admin Panel
-            </div>
+            <div className="text-sm font-black text-white">MedicoseBuddy</div>
+            <div className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest">Admin Panel</div>
           </div>
         </div>
-        <div style={{ padding: "10px 8px", flex: 1 }}>
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 9,
-                padding: "9px 10px",
-                borderRadius: 8,
-                cursor: "pointer",
-                width: "100%",
-                textAlign: "left",
-                border: "none",
-                fontFamily: "Outfit, sans-serif",
-                fontSize: 13,
-                fontWeight: 600,
-                marginBottom: 2,
-                transition: "all .18s",
-                background:
-                  activeTab === item.id ? "rgba(6,182,212,.12)" : "transparent",
-                color: activeTab === item.id ? "#06B6D4" : "#94A3B8",
-              }}
-            >
-              <span style={{ fontSize: 15 }}>{item.icon}</span> {item.label}
+        <nav className="flex-1 p-2 space-y-0.5 overflow-y-auto">
+          {NAV_ITEMS.map(item => (
+            <button key={item.id} onClick={() => navClick(item.id)}
+              className={`flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-sm font-semibold transition-colors text-left
+                ${activeTab === item.id ? 'bg-cyan-500/10 text-cyan-400' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200'}`}>
+              <span className="text-base">{item.icon}</span> {item.label}
             </button>
           ))}
-        </div>
-        <div
-          style={{
-            padding: "12px 14px",
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-          }}
-        >
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut();
-              setAuthed(false);
-            }}
-            style={{
-              width: "100%",
-              padding: "8px",
-              borderRadius: 8,
-              background: "transparent",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "#4A5568",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "Outfit, sans-serif",
-            }}
-          >
+        </nav>
+        <div className="p-3 border-t border-white/[0.06]">
+          <button onClick={async () => { await supabase.auth.signOut(); setAuthed(false) }}
+            className="w-full py-2 rounded-lg border border-white/10 text-slate-400 text-xs font-semibold hover:bg-white/5 transition-colors">
             🚪 Logout
           </button>
         </div>
-      </div>
+      </aside>
 
-      {/* MAIN */}
-      <div style={S.main}>
-        <div style={S.topbar}>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>
-            {NAV_ITEMS.find((n) => n.id === activeTab)?.icon}{" "}
-            {NAV_ITEMS.find((n) => n.id === activeTab)?.label}
+      {/* Main */}
+      <div className="flex-1 lg:ml-56 min-h-screen flex flex-col">
+        {/* Topbar */}
+        <header className="sticky top-0 z-20 h-14 px-4 flex items-center justify-between border-b border-white/[0.06] bg-[#07090F]/90 backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-1.5 rounded-lg hover:bg-white/5">
+              <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <span className="text-base font-extrabold">
+              {NAV_ITEMS.find(n => n.id === activeTab)?.icon} {NAV_ITEMS.find(n => n.id === activeTab)?.label}
+            </span>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div
-              style={{
-                padding: "5px 12px",
-                borderRadius: 7,
-                background: "rgba(16,185,129,.08)",
-                border: "1px solid rgba(16,185,129,.2)",
-                fontSize: 11,
-                fontWeight: 600,
-                color: "#10B981",
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-              }}
-            >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: "#10B981",
-                  display: "inline-block",
-                  animation: "pulse 2s infinite",
-                }}
-              />
-              Supabase Live
-            </div>
+          <div className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-400">Live</span>
           </div>
-        </div>
+        </header>
 
-        <div style={{ padding: 24 }}>
-          {/* ══ DASHBOARD ══ */}
-          {activeTab === "dashboard" && (
-            <div>
-              {/* Stat Cards */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))",
-                  gap: 12,
-                  marginBottom: 20,
-                }}
-              >
+        {/* Content */}
+        <main className="flex-1 p-4 lg:p-6">
+
+          {/* ── DASHBOARD ── */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
                 {[
-                  {
-                    icon: "👥",
-                    val: users.length,
-                    label: "Total Users",
-                    color: "#06B6D4",
-                  },
-                  {
-                    icon: "💰",
-                    val: `₹${totalRevenue}`,
-                    label: "Total Revenue",
-                    color: "#10B981",
-                  },
-                  {
-                    icon: "🧾",
-                    val: orders.length,
-                    label: "Total Orders",
-                    color: "#F59E0B",
-                  },
-                  {
-                    icon: "📄",
-                    val: papers.filter((p) => p.file_path).length,
-                    label: "PDFs Uploaded",
-                    color: "#8B5CF6",
-                  },
-                  {
-                    icon: "⏳",
-                    val: papers.filter((p) => !p.file_path).length,
-                    label: "Upload Pending",
-                    color: "#EF4444",
-                  },
-                  {
-                    icon: "🔥",
-                    val: todayOrders.length,
-                    label: "Orders Today",
-                    color: "#06B6D4",
-                  },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    style={{
-                      ...S.card,
-                      marginBottom: 0,
-                      padding: 18,
-                      borderTop: `2px solid ${s.color}`,
-                    }}
-                  >
-                    <div style={{ fontSize: 24, marginBottom: 8 }}>
-                      {s.icon}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 28,
-                        fontWeight: 900,
-                        color: s.color,
-                        fontFamily: "JetBrains Mono, monospace",
-                        letterSpacing: -1,
-                      }}
-                    >
-                      {s.val}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "#4A5568",
-                        fontWeight: 500,
-                        marginTop: 3,
-                      }}
-                    >
-                      {s.label}
-                    </div>
+                  { icon: '👥', val: users.length, label: 'Users', color: 'border-cyan-500', text: 'text-cyan-400' },
+                  { icon: '💰', val: `₹${totalRevenue}`, label: 'Revenue', color: 'border-emerald-500', text: 'text-emerald-400' },
+                  { icon: '🧾', val: orders.length, label: 'Orders', color: 'border-amber-500', text: 'text-amber-400' },
+                  { icon: '📄', val: papers.filter(p => p.file_path).length, label: 'PDFs', color: 'border-violet-500', text: 'text-violet-400' },
+                  { icon: '📝', val: notes.length, label: 'Notes', color: 'border-pink-500', text: 'text-pink-400' },
+                  { icon: '🔥', val: todayOrders.length, label: 'Today', color: 'border-orange-500', text: 'text-orange-400' },
+                ].map(s => (
+                  <div key={s.label} className={`bg-[#111827] rounded-xl p-4 border-t-2 ${s.color} border border-white/[0.06]`}>
+                    <div className="text-2xl mb-2">{s.icon}</div>
+                    <div className={`text-2xl font-black font-mono ${s.text}`}>{s.val}</div>
+                    <div className="text-[11px] text-slate-500 font-medium mt-0.5">{s.label}</div>
                   </div>
                 ))}
               </div>
 
-              {/* Recent Orders */}
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    🧾 Recent Orders
-                  </span>
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">🧾 Recent Orders</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        {['User', 'Type', 'Amount', 'Status', 'Date'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders.slice(0, 8).map(o => (
+                        <tr key={o.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="px-4 py-3 font-mono text-[11px] text-slate-500">{o.user_id.slice(0, 8)}…</td>
+                          <td className="px-4 py-3"><span className="bg-violet-500/10 text-violet-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{o.item_type}</span></td>
+                          <td className="px-4 py-3 font-mono font-bold text-emerald-400">₹{o.amount}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                              {o.status === 'success' ? '✅ Success' : '⏳ ' + o.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-[11px] text-slate-500">{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <table style={S.table}>
+              </div>
+            </div>
+          )}
+
+          {/* ── UPLOAD ── */}
+          {activeTab === 'upload' && (
+            <div className="space-y-4">
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">☁️ Upload PDF to Supabase Storage</div>
+                <div className="p-5 space-y-4">
+                  {/* Category toggle */}
+                  <div className="flex gap-2">
+                    {(['paper', 'note'] as const).map(cat => (
+                      <button key={cat} onClick={() => setUpCategory(cat)}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors
+                          ${upCategory === cat ? 'bg-cyan-500 text-white' : 'bg-[#1C2333] text-slate-400 hover:text-white border border-white/10'}`}>
+                        {cat === 'paper' ? '📄 PYQ Paper' : '📝 Notes'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Subject</label>
+                      <select value={upSubject} onChange={e => setUpSubject(e.target.value)}
+                        className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                        {subjects.map(s => <option key={s.id} value={s.id}>{s.name} ({s.code})</option>)}
+                      </select>
+                    </div>
+
+                    {upCategory === 'paper' ? (
+                      <>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Exam Year</label>
+                          <select value={upYear} onChange={e => setUpYear(e.target.value)}
+                            className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            {[2025, 2024, 2023, 2022, 2021, 2020, 2019, 2018].map(y => <option key={y} value={y}>{y}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">File Type</label>
+                          <select value={upType} onChange={e => setUpType(e.target.value)}
+                            className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            <option value="question">PYQ — Question Paper</option>
+                            <option value="solution">PYQ — Solution</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Price (₹)</label>
+                          <input type="number" value={upPrice} onChange={e => setUpPrice(e.target.value)}
+                            className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                        </div>
+                        <div className="flex items-center gap-2 pt-4">
+                          <input id="freeP" type="checkbox" checked={upFree} onChange={e => setUpFree(e.target.checked)} className="rounded" />
+                          <label htmlFor="freeP" className="text-sm font-semibold text-slate-400 cursor-pointer">Page 1 Free Preview?</label>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Note Type</label>
+                          <select value={upNoteType} onChange={e => setUpNoteType(e.target.value)}
+                            className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                            <option value="chapter_notes">Chapter Notes</option>
+                            <option value="short_notes">Short Notes</option>
+                            <option value="important_qs">Important Questions</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Title</label>
+                          <input type="text" value={upTitle} onChange={e => setUpTitle(e.target.value)}
+                            placeholder="e.g. Anatomy Chapter 1 Notes"
+                            className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Price (₹)</label>
+                          <input type="number" value={upPrice} onChange={e => setUpPrice(e.target.value)}
+                            className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Drop zone */}
+                  <div
+                    onClick={() => fileRef.current?.click()}
+                    onDragOver={e => e.preventDefault()}
+                    onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleUpload(f) }}
+                    className="border-2 border-dashed border-white/15 rounded-xl p-10 text-center cursor-pointer bg-[#1C2333] hover:border-cyan-500/40 transition-colors">
+                    <div className="text-4xl mb-3 opacity-60">📁</div>
+                    <div className="text-base font-bold mb-1">Click or drag PDF here</div>
+                    <div className="text-xs text-slate-500">PDF only · Max 50MB</div>
+                    {uploading && (
+                      <div className="mt-4">
+                        <div className="text-xs text-slate-400 mb-1.5">Uploading... {uploadProgress}%</div>
+                        <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
+                          <div className="h-full bg-cyan-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <input ref={fileRef} type="file" accept=".pdf" className="hidden"
+                    onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(f) }} />
+
+                  {uploadResult && (
+                    <div className={`px-4 py-3 rounded-xl text-sm font-mono ${uploadResult.startsWith('✅') ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
+                      {uploadResult}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Upload status per subject */}
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">📋 Upload Status</div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        {['Subject', 'Code', 'Year', 'Papers', 'Notes', 'Quick Upload'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subjects.map(s => {
+                        const sPapers = papers.filter(p => p.subject_id === s.id)
+                        const sNotes = notes.filter(n => n.subject_id === s.id)
+                        return (
+                          <tr key={s.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                                <span className="font-semibold text-sm">{s.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-[11px] text-cyan-400">{s.code}</td>
+                            <td className="px-4 py-3"><span className="bg-violet-500/10 text-violet-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{s.year}</span></td>
+                            <td className="px-4 py-3">
+                              <span className={`font-mono text-xs ${sPapers.filter(p => p.file_path).length > 0 ? 'text-emerald-400' : 'text-slate-500'}`}>
+                                {sPapers.filter(p => p.file_path).length}/{sPapers.length}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-slate-400">{sNotes.length}</td>
+                            <td className="px-4 py-3">
+                              <button onClick={() => { setUpSubject(s.id); setActiveTab('upload') }}
+                                className="bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold px-3 py-1 rounded-lg transition-colors">
+                                Upload →
+                              </button>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── PYQ PAPERS ── */}
+          {activeTab === 'papers' && (
+            <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">📄 All PYQ Papers</div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
                   <thead>
-                    <tr>
-                      <th style={S.th}>User</th>
-                      <th style={S.th}>Type</th>
-                      <th style={S.th}>Amount</th>
-                      <th style={S.th}>Status</th>
-                      <th style={S.th}>Date</th>
+                    <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      {['Subject', 'Year', 'Type', 'File', 'Price', 'Downloads', 'Status', 'Action'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {orders.slice(0, 8).map((o) => (
-                      <tr key={o.id}>
-                        <td style={S.td}>
-                          <span
-                            style={{
-                              fontFamily: "JetBrains Mono, monospace",
-                              fontSize: 11,
-                              color: "#4A5568",
-                            }}
-                          >
-                            {o.user_id.slice(0, 8)}...
-                          </span>
+                    {papers.map(p => {
+                      const subj = subjects.find(s => s.id === p.subject_id)
+                      return (
+                        <tr key={p.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap">{subj?.name || '—'}</td>
+                          <td className="px-4 py-3 font-mono font-bold text-cyan-400">{p.exam_year}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.type === 'question' ? 'bg-cyan-500/10 text-cyan-400' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                              {p.type === 'question' ? '📄 Q' : '✅ Sol'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[10px]">
+                            <span className={p.file_path ? 'text-emerald-400' : 'text-slate-500'}>
+                              {p.file_path ? '✅ ' + p.file_path.split('/').pop() : '⏳ Pending'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-emerald-400">₹{p.price}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-slate-400">{p.downloads}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                              {p.is_active ? '● Active' : '● Hidden'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => togglePaper(p.id, p.is_active)}
+                              className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${p.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                              {p.is_active ? 'Hide' : 'Show'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── NOTES ── */}
+          {activeTab === 'notes' && (
+            <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                <span className="text-sm font-bold">📝 All Notes</span>
+                <button onClick={() => { setUpCategory('note'); setActiveTab('upload') }}
+                  className="bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                  + Upload Note
+                </button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      {['Subject', 'Title', 'Type', 'File', 'Price', 'Status', 'Action'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {notes.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                          No notes uploaded yet. <button onClick={() => { setUpCategory('note'); setActiveTab('upload') }} className="text-cyan-400 underline">Upload the first note</button>
                         </td>
-                        <td style={S.td}>
-                          <span
-                            style={{
-                              ...S.badge("#8B5CF6", "rgba(139,92,246,.1)"),
-                            }}
-                          >
-                            {o.item_type}
-                          </span>
+                      </tr>
+                    ) : notes.map(n => {
+                      const subj = subjects.find(s => s.id === n.subject_id)
+                      return (
+                        <tr key={n.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap">{subj?.name || '—'}</td>
+                          <td className="px-4 py-3 text-sm max-w-[200px] truncate">{n.title}</td>
+                          <td className="px-4 py-3">
+                            <span className="bg-pink-500/10 text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                              {n.type.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[10px]">
+                            <span className={n.file_path ? 'text-emerald-400' : 'text-slate-500'}>
+                              {n.file_path ? '✅ ' + n.file_path.split('/').pop() : '⏳ Pending'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 font-bold text-emerald-400">₹{n.price}</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${n.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                              {n.is_active ? '● Active' : '● Hidden'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => toggleNote(n.id, n.is_active)}
+                              className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${n.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                              {n.is_active ? 'Hide' : 'Show'}
+                            </button>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* ── SUBJECTS ── */}
+          {activeTab === 'subjects' && (
+            <div className="space-y-4">
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                  <span className="text-sm font-bold">📚 All Subjects</span>
+                  <button onClick={() => setShowAddSubject(v => !v)}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                    {showAddSubject ? '✕ Cancel' : '+ Add Subject'}
+                  </button>
+                </div>
+
+                {showAddSubject && (
+                  <form onSubmit={addSubject} className="p-5 border-b border-white/[0.06] bg-cyan-500/5">
+                    <div className="text-xs font-bold text-cyan-400 uppercase tracking-widest mb-3">New Subject</div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Subject Name *</label>
+                        <input required value={newSubName} onChange={e => setNewSubName(e.target.value)} placeholder="Anatomy"
+                          className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Subject Code *</label>
+                        <input required value={newSubCode} onChange={e => setNewSubCode(e.target.value)} placeholder="MBBS-101"
+                          className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Year</label>
+                        <select value={newSubYear} onChange={e => setNewSubYear(e.target.value)}
+                          className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none">
+                          <option value="y1">1st Year</option>
+                          <option value="y2">2nd Year</option>
+                          <option value="y3">3rd Year</option>
+                          <option value="y4">4th Year</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Icon (emoji)</label>
+                        <input value={newSubIcon} onChange={e => setNewSubIcon(e.target.value)} placeholder="📗"
+                          className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Color (hex)</label>
+                        <div className="flex gap-2">
+                          <input type="color" value={newSubColor} onChange={e => setNewSubColor(e.target.value)}
+                            className="w-10 h-9 rounded-lg bg-[#1C2333] border border-white/10 cursor-pointer" />
+                          <input value={newSubColor} onChange={e => setNewSubColor(e.target.value)}
+                            className="flex-1 bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none font-mono" />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Total Marks</label>
+                        <input type="number" value={newSubMarks} onChange={e => setNewSubMarks(e.target.value)}
+                          className="w-full bg-[#1C2333] border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none" />
+                      </div>
+                    </div>
+                    <button type="submit" disabled={addingSubject}
+                      className="mt-4 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-white text-sm font-bold px-5 py-2 rounded-lg transition-colors">
+                      {addingSubject ? 'Adding…' : 'Add Subject →'}
+                    </button>
+                  </form>
+                )}
+
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        {['Subject', 'Code', 'Year', 'Marks', 'Status', 'Action'].map(h => (
+                          <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {subjects.map(s => (
+                        <tr key={s.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full" style={{ background: s.color }} />
+                              <span className="font-semibold text-sm">{s.name}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 font-mono text-[11px] text-cyan-400">{s.code}</td>
+                          <td className="px-4 py-3"><span className="bg-violet-500/10 text-violet-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{s.year}</span></td>
+                          <td className="px-4 py-3 font-mono text-xs text-slate-400">{s.total_marks}M</td>
+                          <td className="px-4 py-3">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                              {s.is_active ? '● Active' : '● Hidden'}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <button onClick={() => toggleSubject(s.id, s.is_active)}
+                              className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${s.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                              {s.is_active ? 'Hide' : 'Show'}
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── USERS ── */}
+          {activeTab === 'users' && (
+            <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                <span className="text-sm font-bold">👥 All Users</span>
+                <span className="text-xs text-slate-400">{users.length} total</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      {['Name', 'Email', 'Joined'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-cyan-500 to-violet-500 flex items-center justify-center text-xs font-bold text-white">
+                              {(u.full_name || u.email || 'U')[0].toUpperCase()}
+                            </div>
+                            <span className="font-semibold text-sm">{u.full_name || 'No name'}</span>
+                          </div>
                         </td>
-                        <td style={S.td}>
-                          <span
-                            style={{
-                              fontWeight: 700,
-                              color: "#10B981",
-                              fontFamily: "JetBrains Mono, monospace",
-                            }}
-                          >
-                            ₹{o.amount}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span
-                            style={
-                              o.status === "success"
-                                ? S.badge("#10B981", "rgba(16,185,129,.1)")
-                                : S.badge("#F59E0B", "rgba(245,158,11,.1)")
-                            }
-                          >
-                            {o.status === "success"
-                              ? "✅ Success"
-                              : "⏳ Pending"}
-                          </span>
-                        </td>
-                        <td style={{ ...S.td, color: "#4A5568", fontSize: 11 }}>
-                          {new Date(o.created_at).toLocaleDateString("en-IN")}
-                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400">{u.email}</td>
+                        <td className="px-4 py-3 text-[11px] text-slate-500">{new Date(u.created_at).toLocaleDateString('en-IN')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -811,784 +796,78 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ══ UPLOAD PDFs ══ */}
-          {activeTab === "upload" && (
-            <div>
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    ☁️ Upload PDF to Supabase Storage
-                  </span>
-                </div>
-                <div style={S.cardBody}>
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: 14,
-                      marginBottom: 18,
-                    }}
-                  >
-                    <div>
-                      <label style={S.label}>Subject</label>
-                      <select
-                        value={upSubject}
-                        onChange={(e) => setUpSubject(e.target.value)}
-                        style={S.select}
-                      >
-                        {subjects.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name} ({s.code})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={S.label}>Exam Year</label>
-                      <select
-                        value={upYear}
-                        onChange={(e) => setUpYear(e.target.value)}
-                        style={S.select}
-                      >
-                        {[2024, 2023, 2022, 2021, 2020].map((y) => (
-                          <option key={y} value={y}>
-                            {y}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={S.label}>File Type</label>
-                      <select
-                        value={upType}
-                        onChange={(e) => setUpType(e.target.value)}
-                        style={S.select}
-                      >
-                        <option value="question">PYQ — Question Paper</option>
-                        <option value="solution">PYQ — Solution</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={S.label}>Price (₹)</label>
-                      <input
-                        type="number"
-                        value={upPrice}
-                        onChange={(e) => setUpPrice(e.target.value)}
-                        style={S.input}
-                      />
-                    </div>
-                    <div
-                      style={{ display: "flex", alignItems: "center", gap: 10 }}
-                    >
-                      <input
-                        type="checkbox"
-                        id="freePreview"
-                        checked={upFree}
-                        onChange={(e) => setUpFree(e.target.checked)}
-                      />
-                      <label
-                        htmlFor="freePreview"
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 600,
-                          color: "#94A3B8",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Page 1 Free Preview?
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Drop Zone */}
-                  <div
-                    onClick={() => fileRef.current?.click()}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      const f = e.dataTransfer.files[0];
-                      if (f) handleUpload(f);
-                    }}
-                    style={{
-                      border: "2px dashed rgba(255,255,255,0.15)",
-                      borderRadius: 12,
-                      padding: 36,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      background: "#1C2333",
-                      transition: "all .2s",
-                    }}
-                  >
-                    <div
-                      style={{ fontSize: 36, marginBottom: 10, opacity: 0.6 }}
-                    >
-                      📁
-                    </div>
-                    <div
-                      style={{ fontSize: 15, fontWeight: 700, marginBottom: 5 }}
-                    >
-                      Click karo ya PDF drag karo
-                    </div>
-                    <div style={{ fontSize: 12, color: "#4A5568" }}>
-                      PDF only · Max 50MB
-                    </div>
-                    {uploading && (
-                      <div style={{ marginTop: 14 }}>
-                        <div
-                          style={{
-                            fontSize: 12,
-                            color: "#94A3B8",
-                            marginBottom: 6,
-                          }}
-                        >
-                          Uploading... {uploadProgress}%
-                        </div>
-                        <div
-                          style={{
-                            height: 5,
-                            background: "#2D3748",
-                            borderRadius: 3,
-                            overflow: "hidden",
-                          }}
-                        >
-                          <div
-                            style={{
-                              height: "100%",
-                              width: `${uploadProgress}%`,
-                              background: "#06B6D4",
-                              borderRadius: 3,
-                              transition: "width .3s",
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept=".pdf"
-                    style={{ display: "none" }}
-                    onChange={(e) => {
-                      const f = e.target.files?.[0];
-                      if (f) handleUpload(f);
-                    }}
-                  />
-
-                  {uploadResult && (
-                    <div
-                      style={{
-                        marginTop: 14,
-                        padding: "12px 14px",
-                        background: uploadResult.startsWith("✅")
-                          ? "rgba(16,185,129,.08)"
-                          : "rgba(239,68,68,.08)",
-                        border: `1px solid ${uploadResult.startsWith("✅") ? "rgba(16,185,129,.2)" : "rgba(239,68,68,.2)"}`,
-                        borderRadius: 10,
-                        fontSize: 13,
-                        fontFamily: "JetBrains Mono, monospace",
-                      }}
-                    >
-                      {uploadResult}
-                    </div>
-                  )}
-                </div>
+          {/* ── ORDERS ── */}
+          {activeTab === 'orders' && (
+            <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+              <div className="px-5 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                <span className="text-sm font-bold">🧾 All Orders</span>
+                <span className="font-mono font-bold text-emerald-400 text-sm">₹{totalRevenue} total</span>
               </div>
-
-              {/* Upload Status Table */}
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    📋 Upload Status — All Subjects
-                  </span>
-                </div>
-                <table style={S.table}>
+              <div className="overflow-x-auto">
+                <table className="w-full">
                   <thead>
-                    <tr>
-                      <th style={S.th}>Subject</th>
-                      <th style={S.th}>Code</th>
-                      <th style={S.th}>Year</th>
-                      <th style={S.th}>PYQ Papers</th>
-                      <th style={S.th}>Action</th>
+                    <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                      {['Order ID', 'Type', 'Amount', 'Status', 'Date'].map(h => (
+                        <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {subjects.map((s) => {
-                      const sPapers = papers.filter(
-                        (p) => p.subject_id === s.id,
-                      );
-                      const uploaded = sPapers.filter(
-                        (p) => p.file_path,
-                      ).length;
-                      const total = sPapers.length;
-                      return (
-                        <tr key={s.id}>
-                          <td style={S.td}>
-                            <div
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 8,
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  borderRadius: "50%",
-                                  background: s.color,
-                                }}
-                              />
-                              <span style={{ fontWeight: 600 }}>{s.name}</span>
-                            </div>
-                          </td>
-                          <td style={S.td}>
-                            <span
-                              style={{
-                                fontFamily: "JetBrains Mono, monospace",
-                                fontSize: 11,
-                                color: "#06B6D4",
-                              }}
-                            >
-                              {s.code}
-                            </span>
-                          </td>
-                          <td style={S.td}>
-                            <span
-                              style={{
-                                ...S.badge("#8B5CF6", "rgba(139,92,246,.1)"),
-                              }}
-                            >
-                              {s.year}
-                            </span>
-                          </td>
-                          <td style={S.td}>
-                            <span
-                              style={{
-                                fontFamily: "JetBrains Mono, monospace",
-                                fontSize: 12,
-                                color: uploaded > 0 ? "#10B981" : "#4A5568",
-                              }}
-                            >
-                              {uploaded}/{total}
-                            </span>
-                            <div
-                              style={{
-                                width: 80,
-                                height: 3,
-                                background: "#2D3748",
-                                borderRadius: 2,
-                                marginTop: 4,
-                                overflow: "hidden",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  height: "100%",
-                                  width:
-                                    total > 0
-                                      ? `${(uploaded / total) * 100}%`
-                                      : "0%",
-                                  background: "#10B981",
-                                  borderRadius: 2,
-                                }}
-                              />
-                            </div>
-                          </td>
-                          <td style={S.td}>
-                            <button
-                              onClick={() => {
-                                setUpSubject(s.id);
-                                setActiveTab("upload");
-                              }}
-                              style={S.btnPrimary}
-                            >
-                              Upload →
-                            </button>
-                          </td>
-                        </tr>
-                      );
-                    })}
+                    {orders.map(o => (
+                      <tr key={o.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                        <td className="px-4 py-3 font-mono text-[11px] text-cyan-400">{o.id.slice(0, 8)}…</td>
+                        <td className="px-4 py-3"><span className="bg-violet-500/10 text-violet-400 text-[10px] font-bold px-2 py-0.5 rounded-full">{o.item_type}</span></td>
+                        <td className="px-4 py-3 font-mono font-bold text-emerald-400">₹{o.amount}</td>
+                        <td className="px-4 py-3">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${o.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
+                            {o.status === 'success' ? '✅ Success' : '⏳ ' + o.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-[11px] text-slate-500">{new Date(o.created_at).toLocaleDateString('en-IN')}</td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {/* ══ PYQ PAPERS ══ */}
-          {activeTab === "papers" && (
-            <div style={S.card}>
-              <div style={S.cardHead}>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>
-                  📄 All PYQ Papers
-                </span>
-              </div>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    <th style={S.th}>Subject</th>
-                    <th style={S.th}>Year</th>
-                    <th style={S.th}>Type</th>
-                    <th style={S.th}>File</th>
-                    <th style={S.th}>Price</th>
-                    <th style={S.th}>Downloads</th>
-                    <th style={S.th}>Status</th>
-                    <th style={S.th}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {papers.map((p) => {
-                    const subj = subjects.find((s) => s.id === p.subject_id);
-                    return (
-                      <tr key={p.id}>
-                        <td style={S.td}>
-                          <span style={{ fontWeight: 600, fontSize: 12 }}>
-                            {subj?.name || "—"}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span
-                            style={{
-                              fontFamily: "JetBrains Mono, monospace",
-                              fontWeight: 700,
-                              color: "#06B6D4",
-                            }}
-                          >
-                            {p.exam_year}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span
-                            style={
-                              p.type === "question"
-                                ? S.badge("#06B6D4", "rgba(6,182,212,.1)")
-                                : S.badge("#10B981", "rgba(16,185,129,.1)")
-                            }
-                          >
-                            {p.type === "question"
-                              ? "📄 Question"
-                              : "✅ Solution"}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span
-                            style={{
-                              fontFamily: "JetBrains Mono, monospace",
-                              fontSize: 10,
-                              color: p.file_path ? "#10B981" : "#4A5568",
-                            }}
-                          >
-                            {p.file_path
-                              ? "✅ " + p.file_path.split("/").pop()
-                              : "⏳ Not uploaded"}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span style={{ fontWeight: 700, color: "#10B981" }}>
-                            ₹{p.price}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span
-                            style={{
-                              fontFamily: "JetBrains Mono, monospace",
-                              fontSize: 12,
-                              color: "#94A3B8",
-                            }}
-                          >
-                            {p.downloads}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <span
-                            style={
-                              p.is_active
-                                ? S.badge("#10B981", "rgba(16,185,129,.1)")
-                                : S.badge("#EF4444", "rgba(239,68,68,.1)")
-                            }
-                          >
-                            {p.is_active ? "● Active" : "● Hidden"}
-                          </span>
-                        </td>
-                        <td style={S.td}>
-                          <button
-                            onClick={() => togglePaper(p.id, p.is_active)}
-                            style={
-                              p.is_active
-                                ? S.btnDanger
-                                : {
-                                    ...S.btnGhost,
-                                    color: "#10B981",
-                                    borderColor: "rgba(16,185,129,.3)",
-                                  }
-                            }
-                          >
-                            {p.is_active ? "Hide" : "Show"}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* ══ SUBJECTS ══ */}
-          {activeTab === "subjects" && (
-            <div style={S.card}>
-              <div style={S.cardHead}>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>
-                  📚 All Subjects
-                </span>
-              </div>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    <th style={S.th}>Subject</th>
-                    <th style={S.th}>Code</th>
-                    <th style={S.th}>Year</th>
-                    <th style={S.th}>Marks</th>
-                    <th style={S.th}>Status</th>
-                    <th style={S.th}>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {subjects.map((s) => (
-                    <tr key={s.id}>
-                      <td style={S.td}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: "50%",
-                              background: s.color,
-                            }}
-                          />
-                          <span style={{ fontWeight: 600 }}>{s.name}</span>
-                        </div>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={{
-                            fontFamily: "JetBrains Mono, monospace",
-                            fontSize: 11,
-                            color: "#06B6D4",
-                          }}
-                        >
-                          {s.code}
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={{
-                            ...S.badge("#8B5CF6", "rgba(139,92,246,.1)"),
-                          }}
-                        >
-                          {s.year}
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={{
-                            fontFamily: "JetBrains Mono, monospace",
-                            fontSize: 12,
-                            color: "#94A3B8",
-                          }}
-                        >
-                          {s.total_marks}M
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={
-                            s.is_active
-                              ? S.badge("#10B981", "rgba(16,185,129,.1)")
-                              : S.badge("#EF4444", "rgba(239,68,68,.1)")
-                          }
-                        >
-                          {s.is_active ? "● Active" : "● Hidden"}
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <button
-                          onClick={() => toggleSubject(s.id, s.is_active)}
-                          style={
-                            s.is_active
-                              ? S.btnDanger
-                              : {
-                                  ...S.btnGhost,
-                                  color: "#10B981",
-                                  borderColor: "rgba(16,185,129,.3)",
-                                }
-                          }
-                        >
-                          {s.is_active ? "Hide" : "Show"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* ══ USERS ══ */}
-          {activeTab === "users" && (
-            <div style={S.card}>
-              <div style={S.cardHead}>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>
-                  👥 All Users
-                </span>
-                <span style={{ fontSize: 12, color: "#94A3B8" }}>
-                  {users.length} total
-                </span>
-              </div>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    <th style={S.th}>Name</th>
-                    <th style={S.th}>Email</th>
-                    <th style={S.th}>Joined</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id}>
-                      <td style={S.td}>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 9,
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              background:
-                                "linear-gradient(135deg,#06B6D4,#8B5CF6)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              fontSize: 12,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {(u.full_name || u.email || "U")[0].toUpperCase()}
-                          </div>
-                          <span style={{ fontWeight: 600 }}>
-                            {u.full_name || "No name"}
-                          </span>
-                        </div>
-                      </td>
-                      <td style={{ ...S.td, color: "#94A3B8", fontSize: 12 }}>
-                        {u.email}
-                      </td>
-                      <td style={{ ...S.td, color: "#4A5568", fontSize: 11 }}>
-                        {new Date(u.created_at).toLocaleDateString("en-IN")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* ══ ORDERS ══ */}
-          {activeTab === "orders" && (
-            <div style={S.card}>
-              <div style={S.cardHead}>
-                <span style={{ fontSize: 14, fontWeight: 700 }}>
-                  🧾 All Orders
-                </span>
-                <span
-                  style={{
-                    fontFamily: "JetBrains Mono, monospace",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    color: "#10B981",
-                  }}
-                >
-                  ₹{totalRevenue} total
-                </span>
-              </div>
-              <table style={S.table}>
-                <thead>
-                  <tr>
-                    <th style={S.th}>Order ID</th>
-                    <th style={S.th}>Type</th>
-                    <th style={S.th}>Amount</th>
-                    <th style={S.th}>Status</th>
-                    <th style={S.th}>Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((o) => (
-                    <tr key={o.id}>
-                      <td style={S.td}>
-                        <span
-                          style={{
-                            fontFamily: "JetBrains Mono, monospace",
-                            fontSize: 11,
-                            color: "#06B6D4",
-                          }}
-                        >
-                          {o.id.slice(0, 8)}...
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={{
-                            ...S.badge("#8B5CF6", "rgba(139,92,246,.1)"),
-                          }}
-                        >
-                          {o.item_type}
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={{
-                            fontWeight: 700,
-                            color: "#10B981",
-                            fontFamily: "JetBrains Mono, monospace",
-                          }}
-                        >
-                          ₹{o.amount}
-                        </span>
-                      </td>
-                      <td style={S.td}>
-                        <span
-                          style={
-                            o.status === "success"
-                              ? S.badge("#10B981", "rgba(16,185,129,.1)")
-                              : S.badge("#F59E0B", "rgba(245,158,11,.1)")
-                          }
-                        >
-                          {o.status === "success"
-                            ? "✅ Success"
-                            : "⏳ " + o.status}
-                        </span>
-                      </td>
-                      <td style={{ ...S.td, color: "#4A5568", fontSize: 11 }}>
-                        {new Date(o.created_at).toLocaleDateString("en-IN")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* ══ PRICING ══ */}
-          {activeTab === "pricing" && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-              }}
-            >
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    💰 Per PDF Prices
-                  </span>
-                </div>
-                <div style={S.cardBody}>
+          {/* ── PRICING ── */}
+          {activeTab === 'pricing' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">💰 Per PDF Prices</div>
+                <div className="p-5 space-y-1">
                   {[
-                    { key: "chapter_notes", label: "Chapter Notes PDF" },
-                    { key: "short_notes", label: "Short Notes PDF" },
-                    { key: "important_qs", label: "Important Questions" },
-                    { key: "pyq_question", label: "PYQ Question Paper" },
-                    { key: "pyq_solution", label: "PYQ Solution" },
-                  ].map((item) => (
-                    <div
-                      key={item.key}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "11px 0",
-                        borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      }}
-                    >
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>
-                        {item.label}
-                      </span>
-                      <span style={{ color: "#4A5568", fontWeight: 700 }}>
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        defaultValue={prices[item.key] || 29}
-                        onBlur={(e) =>
-                          savePrice(item.key, parseInt(e.target.value))
-                        }
-                        style={{
-                          ...S.input,
-                          width: 80,
-                          textAlign: "center",
-                          fontFamily: "JetBrains Mono, monospace",
-                          fontWeight: 700,
-                          fontSize: 14,
-                        }}
-                      />
+                    { key: 'chapter_notes', label: 'Chapter Notes PDF' },
+                    { key: 'short_notes', label: 'Short Notes PDF' },
+                    { key: 'important_qs', label: 'Important Questions' },
+                    { key: 'pyq_question', label: 'PYQ Question Paper' },
+                    { key: 'pyq_solution', label: 'PYQ Solution' },
+                  ].map(item => (
+                    <div key={item.key} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04]">
+                      <span className="flex-1 text-sm font-semibold">{item.label}</span>
+                      <span className="text-slate-500 font-bold">₹</span>
+                      <input type="number" defaultValue={prices[item.key] || 29}
+                        onBlur={e => savePrice(item.key, parseInt(e.target.value))}
+                        className="w-20 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1.5 text-sm font-mono font-bold text-center text-white outline-none" />
                     </div>
                   ))}
                 </div>
               </div>
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    👑 Subscription Plans
-                  </span>
-                </div>
-                <div style={S.cardBody}>
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">👑 Subscription Plans</div>
+                <div className="p-5 space-y-1">
                   {[
-                    { key: "pro_monthly", label: "Pro Plan (Monthly)" },
-                    { key: "annual", label: "Annual Plan" },
-                  ].map((item) => (
-                    <div
-                      key={item.key}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "11px 0",
-                        borderBottom: "1px solid rgba(255,255,255,0.04)",
-                      }}
-                    >
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600 }}>
-                        {item.label}
-                      </span>
-                      <span style={{ color: "#4A5568", fontWeight: 700 }}>
-                        ₹
-                      </span>
-                      <input
-                        type="number"
-                        defaultValue={prices[item.key] || 149}
-                        onBlur={(e) =>
-                          savePrice(item.key, parseInt(e.target.value))
-                        }
-                        style={{
-                          ...S.input,
-                          width: 90,
-                          textAlign: "center",
-                          fontFamily: "JetBrains Mono, monospace",
-                          fontWeight: 700,
-                          fontSize: 14,
-                        }}
-                      />
+                    { key: 'pro_monthly', label: 'Pro Plan (Monthly)', default: 149 },
+                    { key: 'annual', label: 'Annual Plan', default: 999 },
+                  ].map(item => (
+                    <div key={item.key} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04]">
+                      <span className="flex-1 text-sm font-semibold">{item.label}</span>
+                      <span className="text-slate-500 font-bold">₹</span>
+                      <input type="number" defaultValue={prices[item.key] || item.default}
+                        onBlur={e => savePrice(item.key, parseInt(e.target.value))}
+                        className="w-24 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1.5 text-sm font-mono font-bold text-center text-white outline-none" />
                     </div>
                   ))}
                 </div>
@@ -1596,137 +875,58 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ══ SETTINGS ══ */}
-          {activeTab === "settings" && (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 16,
-              }}
-            >
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    ⚙️ Supabase Config
-                  </span>
-                </div>
-                <div style={S.cardBody}>
-                  <p
-                    style={{ fontSize: 13, color: "#94A3B8", lineHeight: 1.7 }}
-                  >
-                    Supabase config{" "}
-                    <code
-                      style={{
-                        background: "#1C2333",
-                        padding: "1px 6px",
-                        borderRadius: 4,
-                        fontSize: 11,
-                      }}
-                    >
-                      .env.local
-                    </code>{" "}
-                    mein manage hoti hai.
-                    <br />
-                    <br />
-                    Keys change karne ke liye Vercel Dashboard → Settings →
-                    Environment Variables mein jao.
+          {/* ── SETTINGS ── */}
+          {activeTab === 'settings' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">⚙️ Configuration</div>
+                <div className="p-5">
+                  <p className="text-sm text-slate-400 leading-relaxed mb-4">
+                    Environment variables are managed in <code className="bg-[#1C2333] px-1.5 py-0.5 rounded text-xs">.env.local</code>.
+                    To update on production, go to Vercel Dashboard → Settings → Environment Variables.
                   </p>
-                  <div
-                    style={{
-                      marginTop: 14,
-                      padding: "12px 14px",
-                      background: "#1C2333",
-                      borderRadius: 10,
-                      fontFamily: "JetBrains Mono, monospace",
-                      fontSize: 11,
-                      color: "#4A5568",
-                      lineHeight: 1.8,
-                    }}
-                  >
-                    NEXT_PUBLIC_SUPABASE_URL=✅
-                    <br />
-                    NEXT_PUBLIC_SUPABASE_ANON_KEY=✅
-                    <br />
-                    SUPABASE_SERVICE_ROLE_KEY=✅
-                    <br />
-                    RAZORPAY_KEY_SECRET=✅
+                  <div className="bg-[#1C2333] rounded-xl p-4 font-mono text-[11px] text-slate-500 space-y-1.5">
+                    <div>NEXT_PUBLIC_SUPABASE_URL <span className="text-emerald-400">✅</span></div>
+                    <div>NEXT_PUBLIC_SUPABASE_ANON_KEY <span className="text-emerald-400">✅</span></div>
+                    <div>SUPABASE_SERVICE_ROLE_KEY <span className="text-emerald-400">✅</span></div>
+                    <div>RAZORPAY_KEY_ID <span className="text-emerald-400">✅</span></div>
+                    <div>RAZORPAY_KEY_SECRET <span className="text-emerald-400">✅</span></div>
+                    <div>NEXT_PUBLIC_ADMIN_EMAIL <span className="text-emerald-400">✅</span></div>
                   </div>
                 </div>
               </div>
-              <div style={S.card}>
-                <div style={S.cardHead}>
-                  <span style={{ fontSize: 14, fontWeight: 700 }}>
-                    📊 Database Stats
-                  </span>
-                </div>
-                <div style={S.cardBody}>
+              <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">📊 Database Stats</div>
+                <div className="p-5 space-y-0.5">
                   {[
-                    { label: "Total Subjects", val: subjects.length },
-                    { label: "Total Papers", val: papers.length },
-                    {
-                      label: "Uploaded PDFs",
-                      val: papers.filter((p) => p.file_path).length,
-                    },
-                    { label: "Total Users", val: users.length },
-                    { label: "Total Orders", val: orders.length },
-                    {
-                      label: "Successful Orders",
-                      val: orders.filter((o) => o.status === "success").length,
-                    },
-                  ].map((item) => (
-                    <div
-                      key={item.label}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        padding: "9px 0",
-                        borderBottom: "1px solid rgba(255,255,255,0.04)",
-                        fontSize: 13,
-                      }}
-                    >
-                      <span style={{ color: "#94A3B8" }}>{item.label}</span>
-                      <span
-                        style={{
-                          fontFamily: "JetBrains Mono, monospace",
-                          fontWeight: 700,
-                          color: "#06B6D4",
-                        }}
-                      >
-                        {item.val}
-                      </span>
+                    { label: 'Total Subjects', val: subjects.length },
+                    { label: 'Active Subjects', val: subjects.filter(s => s.is_active).length },
+                    { label: 'Total Papers', val: papers.length },
+                    { label: 'Uploaded PDFs', val: papers.filter(p => p.file_path).length },
+                    { label: 'Total Notes', val: notes.length },
+                    { label: 'Total Users', val: users.length },
+                    { label: 'Total Orders', val: orders.length },
+                    { label: 'Successful Orders', val: orders.filter(o => o.status === 'success').length },
+                  ].map(item => (
+                    <div key={item.label} className="flex justify-between py-2.5 border-b border-white/[0.04] text-sm">
+                      <span className="text-slate-400">{item.label}</span>
+                      <span className="font-mono font-bold text-cyan-400">{item.val}</span>
                     </div>
                   ))}
                 </div>
               </div>
             </div>
           )}
-        </div>
+
+        </main>
       </div>
 
       {/* Toast */}
       {toast && (
-        <div
-          style={{
-            position: "fixed",
-            bottom: 20,
-            right: 20,
-            zIndex: 200,
-            background: "#111827",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 11,
-            padding: "12px 18px",
-            fontSize: 13,
-            fontWeight: 600,
-            boxShadow: "0 8px 32px rgba(0,0,0,.4)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
+        <div className="fixed bottom-5 right-5 z-[200] bg-[#111827] border border-white/10 rounded-xl px-4 py-3 text-sm font-semibold shadow-2xl">
           {toast}
         </div>
       )}
     </div>
-  );
+  )
 }
