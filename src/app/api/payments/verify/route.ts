@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
 
       // Increment download counter (non-critical)
       if (order.item_type === 'paper') {
-        await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id }).catch(() => {})
+        try { await supabaseAdmin.rpc('increment_downloads', { paper_id: order.item_id }) } catch {}
       }
     }
 
