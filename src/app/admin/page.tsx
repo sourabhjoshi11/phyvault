@@ -215,6 +215,7 @@ export default function AdminPage() {
       icon: newSubIcon,
       color: newSubColor,
       total_marks: parseInt(newSubMarks) || 100,
+      sort_order: 999,
       is_active: true,
     })
     setAddingSubject(false)
@@ -626,7 +627,7 @@ export default function AdminPage() {
                           <td className="px-4 py-3 text-sm max-w-[200px] truncate">{n.title}</td>
                           <td className="px-4 py-3">
                             <span className="bg-pink-500/10 text-pink-400 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                              {n.type.replace('_', ' ')}
+                              {n.type.replaceAll('_', ' ')}
                             </span>
                           </td>
                           <td className="px-4 py-3 font-mono text-[10px]">
