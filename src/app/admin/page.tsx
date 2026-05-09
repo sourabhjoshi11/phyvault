@@ -25,6 +25,16 @@ interface Paper {
   is_active: boolean;
   downloads: number;
 }
+interface Note {
+  id: string;
+  subject_id: string;
+  type: string;
+  title: string;
+  file_path: string | null;
+  price: number;
+  is_active: boolean;
+  downloads: number;
+}
 interface Order {
   id: string;
   user_id: string;
@@ -44,6 +54,7 @@ const NAV_ITEMS = [
   { id: "dashboard", icon: "📊", label: "Dashboard" },
   { id: "upload", icon: "☁️", label: "Upload PDFs" },
   { id: "papers", icon: "📄", label: "PYQ Papers" },
+  { id: "notes", icon: "📝", label: "Notes" },
   { id: "subjects", icon: "📚", label: "Subjects" },
   { id: "users", icon: "👥", label: "Users" },
   { id: "orders", icon: "🧾", label: "Orders" },
@@ -60,6 +71,7 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [users, setUsers] = useState<Profile[]>([]);
   const [prices, setPrices] = useState<Record<string, number>>({});
@@ -92,6 +104,7 @@ export default function AdminPage() {
     const [
       { data: subs },
       { data: paps },
+      { data: nts },
       { data: ords },
       { data: usrs },
       { data: prs },
@@ -101,6 +114,10 @@ export default function AdminPage() {
         .from("papers")
         .select("*")
         .order("exam_year", { ascending: false }),
+      supabase
+        .from("notes")
+        .select("*")
+        .order("created_at", { ascending: false }),
       supabase
         .from("orders")
         .select("*")
@@ -114,6 +131,7 @@ export default function AdminPage() {
     ]);
     setSubjects(subs || []);
     setPapers(paps || []);
+    setNotes(nts || []);
     setOrders(ords || []);
     setUsers(usrs || []);
     const priceMap: Record<string, number> = {};
@@ -244,6 +262,53 @@ export default function AdminPage() {
       s.map((x) => (x.id === id ? { ...x, is_active: !current } : x)),
     );
     showToast(`${!current ? "✅ Subject activated" : "⏸ Subject hidden"}`);
+  }
+
+  // ── SERVER-SIDE ADMIN ACTION ──
+  async function adminAction(action: string, id: string, value?: any) {
+    const res = await fetch("/api/admin/action", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, id, value }),
+    });
+    return res.ok;
+  }
+
+  // ── DELETE PAPER ──
+  async function deletePaper(id: string) {
+    if (!confirm("Delete this paper permanently? This cannot be undone.")) return;
+    const ok = await adminAction("delete_paper", id);
+    if (ok) {
+      setPapers((p) => p.filter((x) => x.id !== id));
+      showToast("🗑 Paper deleted");
+    } else {
+      showToast("❌ Delete failed");
+    }
+  }
+
+  // ── TOGGLE NOTE ──
+  async function toggleNote(id: string, current: boolean) {
+    const ok = await adminAction("toggle_note", id, !current);
+    if (ok) {
+      setNotes((n) =>
+        n.map((x) => (x.id === id ? { ...x, is_active: !current } : x)),
+      );
+      showToast(`${!current ? "✅ Activated" : "⏸ Hidden"}`);
+    } else {
+      showToast("❌ Action failed");
+    }
+  }
+
+  // ── DELETE NOTE ──
+  async function deleteNote(id: string) {
+    if (!confirm("Delete this note permanently? This cannot be undone.")) return;
+    const ok = await adminAction("delete_note", id);
+    if (ok) {
+      setNotes((n) => n.filter((x) => x.id !== id));
+      showToast("🗑 Note deleted");
+    } else {
+      showToast("❌ Delete failed");
+    }
   }
 
   const totalRevenue = orders
@@ -1211,26 +1276,136 @@ export default function AdminPage() {
                           </span>
                         </td>
                         <td style={S.td}>
-                          <button
-                            onClick={() => togglePaper(p.id, p.is_active)}
-                            style={
-                              p.is_active
-                                ? S.btnDanger
-                                : {
-                                    ...S.btnGhost,
-                                    color: "#10B981",
-                                    borderColor: "rgba(16,185,129,.3)",
-                                  }
-                            }
-                          >
-                            {p.is_active ? "Hide" : "Show"}
-                          </button>
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              onClick={() => togglePaper(p.id, p.is_active)}
+                              style={
+                                p.is_active
+                                  ? S.btnDanger
+                                  : {
+                                      ...S.btnGhost,
+                                      color: "#10B981",
+                                      borderColor: "rgba(16,185,129,.3)",
+                                    }
+                              }
+                            >
+                              {p.is_active ? "Hide" : "Show"}
+                            </button>
+                            <button
+                              onClick={() => deletePaper(p.id)}
+                              style={{
+                                ...S.btnDanger,
+                                background: "rgba(239,68,68,.15)",
+                                borderColor: "rgba(239,68,68,.3)",
+                              }}
+                            >
+                              🗑
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {/* ══ NOTES ══ */}
+          {activeTab === "notes" && (
+            <div style={S.card}>
+              <div style={S.cardHead}>
+                <span style={{ fontSize: 14, fontWeight: 700 }}>📝 All Notes</span>
+                <span style={{ fontSize: 12, color: "#94A3B8" }}>{notes.length} total</span>
+              </div>
+              {notes.length === 0 ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "#4A5568", fontSize: 14 }}>
+                  No notes uploaded yet
+                </div>
+              ) : (
+                <table style={S.table}>
+                  <thead>
+                    <tr>
+                      <th style={S.th}>Subject</th>
+                      <th style={S.th}>Title</th>
+                      <th style={S.th}>Type</th>
+                      <th style={S.th}>File</th>
+                      <th style={S.th}>Price</th>
+                      <th style={S.th}>Status</th>
+                      <th style={S.th}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {notes.map((n) => {
+                      const subj = subjects.find((s) => s.id === n.subject_id);
+                      return (
+                        <tr key={n.id}>
+                          <td style={S.td}>
+                            <span style={{ fontWeight: 600, fontSize: 12 }}>
+                              {subj?.name || "—"}
+                            </span>
+                          </td>
+                          <td style={S.td}>
+                            <span style={{ fontSize: 12, color: "#CBD5E1" }}>
+                              {n.title}
+                            </span>
+                          </td>
+                          <td style={S.td}>
+                            <span style={S.badge("#8B5CF6", "rgba(139,92,246,.1)")}>
+                              {n.type.replace("_", " ")}
+                            </span>
+                          </td>
+                          <td style={S.td}>
+                            <span style={{
+                              fontFamily: "JetBrains Mono, monospace",
+                              fontSize: 10,
+                              color: n.file_path ? "#10B981" : "#4A5568",
+                            }}>
+                              {n.file_path ? "✅ " + n.file_path.split("/").pop() : "⏳ Not uploaded"}
+                            </span>
+                          </td>
+                          <td style={S.td}>
+                            <span style={{ fontWeight: 700, color: "#10B981" }}>₹{n.price}</span>
+                          </td>
+                          <td style={S.td}>
+                            <span style={
+                              n.is_active
+                                ? S.badge("#10B981", "rgba(16,185,129,.1)")
+                                : S.badge("#EF4444", "rgba(239,68,68,.1)")
+                            }>
+                              {n.is_active ? "● Active" : "● Hidden"}
+                            </span>
+                          </td>
+                          <td style={S.td}>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button
+                                onClick={() => toggleNote(n.id, n.is_active)}
+                                style={
+                                  n.is_active
+                                    ? S.btnDanger
+                                    : { ...S.btnGhost, color: "#10B981", borderColor: "rgba(16,185,129,.3)" }
+                                }
+                              >
+                                {n.is_active ? "Hide" : "Show"}
+                              </button>
+                              <button
+                                onClick={() => deleteNote(n.id)}
+                                style={{
+                                  ...S.btnDanger,
+                                  background: "rgba(239,68,68,.15)",
+                                  borderColor: "rgba(239,68,68,.3)",
+                                }}
+                              >
+                                🗑
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
             </div>
           )}
 
