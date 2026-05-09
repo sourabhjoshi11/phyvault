@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <!-- Dark navy background -->
+  <rect width="32" height="32" rx="7" fill="#0F172A"/>
+
+  <!-- Cyan top accent bar -->
+  <rect x="0" y="0" width="32" height="3" rx="1.5" fill="#06B6D4"/>
+
+  <!-- Bold M letter -->
+  <path d="M5 24 L5 9 L16 17 L27 9 L27 24"
+        stroke="white" stroke-width="2.8"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ECG heartbeat line at bottom -->
+  <path d="M3 28.5 L9 28.5 L11 25.5 L13 31 L15 28.5 L29 28.5"
+        stroke="#06B6D4" stroke-width="1.6"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

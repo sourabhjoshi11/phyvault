@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="180" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="180" height="180" rx="40" fill="url(#bg)"/>
+
+  <!-- Cyan top accent -->
+  <rect x="0" y="0" width="180" height="16" rx="8" fill="#06B6D4"/>
+
+  <!-- Bold M -->
+  <path d="M28 136 L28 50 L90 95 L152 50 L152 136"
+        stroke="white" stroke-width="16"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ECG heartbeat line -->
+  <path d="M18 158 L52 158 L64 142 L76 173 L88 158 L162 158"
+        stroke="#06B6D4" stroke-width="9"
+        stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
