@@ -232,6 +232,22 @@ export default function AdminPage() {
     }
   }
 
+  async function deletePaper(id: string) {
+    if (!confirm("Delete this paper permanently? This cannot be undone.")) return
+    if (await adminAction("delete_paper", id, null)) {
+      setPapers(p => p.filter(x => x.id !== id))
+      showToast("🗑 Paper deleted")
+    }
+  }
+
+  async function deleteNote(id: string) {
+    if (!confirm("Delete this note permanently? This cannot be undone.")) return
+    if (await adminAction("delete_note", id, null)) {
+      setNotes(n => n.filter(x => x.id !== id))
+      showToast("🗑 Note deleted")
+    }
+  }
+
   async function toggleSubject(id: string, current: boolean) {
     if (await adminAction('toggle_subject', id, !current)) {
       setSubjects(s => s.map(x => x.id === id ? { ...x, is_active: !current } : x))
@@ -624,10 +640,16 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <button onClick={() => togglePaper(p.id, p.is_active)}
-                              className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${p.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
-                              {p.is_active ? 'Hide' : 'Show'}
-                            </button>
+                            <div className="flex gap-2">
+                              <button onClick={() => togglePaper(p.id, p.is_active)}
+                                className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${p.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                                {p.is_active ? 'Hide' : 'Show'}
+                              </button>
+                              <button onClick={() => deletePaper(p.id)}
+                                className="text-xs font-bold px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                                🗑
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )
@@ -697,10 +719,16 @@ export default function AdminPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3">
-                            <button onClick={() => toggleNote(n.id, n.is_active)}
-                              className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${n.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
-                              {n.is_active ? 'Hide' : 'Show'}
-                            </button>
+                            <div className="flex gap-2">
+                              <button onClick={() => toggleNote(n.id, n.is_active)}
+                                className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${n.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                                {n.is_active ? 'Hide' : 'Show'}
+                              </button>
+                              <button onClick={() => deleteNote(n.id)}
+                                className="text-xs font-bold px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                                🗑
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       )

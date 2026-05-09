@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
       case 'update_note_price':
         await supabaseAdmin.from('notes').update({ price: value }).eq('id', id)
         break
+      case 'delete_paper':
+        await supabaseAdmin.from('papers').delete().eq('id', id)
+        break
+      case 'delete_note':
+        await supabaseAdmin.from('notes').delete().eq('id', id)
+        break
       case 'add_subject':
         await supabaseAdmin.from('subjects').insert({ ...value })
         break
