@@ -1,14 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleLogin(e: React.FormEvent) {
@@ -27,54 +29,102 @@ export default function LoginPage() {
     }
   }
 
+  async function handleGoogle() {
+    setGoogleLoading(true)
+    setError('')
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) {
+      setError(error.message)
+      setGoogleLoading(false)
+    }
+  }
+
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', borderRadius: 24, padding: 40, width: '100%', maxWidth: 400, boxShadow: '0 32px 80px rgba(0,0,0,.6)' }}>
-        <div style={{ width: 52, height: 52, borderRadius: 15, background: 'linear-gradient(135deg,#06B6D4,#10B981)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, margin: '0 auto 20px' }}>PV</div>
-        <h1 style={{ fontSize: 24, fontWeight: 900, marginBottom: 4, textAlign: 'center' }}>Welcome Back</h1>
-        <p style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 28, textAlign: 'center' }}>Sign in to your PhysioVault account</p>
+    <div className="min-h-screen bg-[#07090F] flex flex-col items-center justify-center px-4 py-10">
+      {/* Logo */}
+      <Link href="/" className="flex items-center gap-2 mb-8">
+        <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-sm font-bold text-white">MB</div>
+        <span className="text-lg font-extrabold tracking-tight">MedicoseBuddy</span>
+      </Link>
+
+      <div className="w-full max-w-sm bg-[#111827] border border-white/[0.08] rounded-2xl p-7">
+        <h1 className="text-xl font-black mb-1 text-center">Welcome back</h1>
+        <p className="text-sm text-slate-400 text-center mb-6">Sign in to your account</p>
 
         {error && (
-          <div style={{ padding: '10px 13px', background: 'rgba(239,68,68,.08)', border: '1px solid rgba(239,68,68,.2)', borderRadius: 9, fontSize: 13, color: '#EF4444', marginBottom: 13 }}>
-            {error}
+          <div className="mb-4 px-4 py-3 bg-red-500/[0.08] border border-red-500/20 rounded-xl text-sm text-red-300">
+            ⚠️ {error}
           </div>
         )}
 
-        <form onSubmit={handleLogin}>
-          <div style={{ marginBottom: 14 }}>
-            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Email Address</label>
+        {/* Google login */}
+        <button
+          onClick={handleGoogle}
+          disabled={googleLoading || loading}
+          className="w-full flex items-center justify-center gap-3 py-3 rounded-xl bg-white text-[#0F172A] font-bold text-sm hover:bg-slate-100 active:bg-slate-200 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mb-4"
+        >
+          {googleLoading ? (
+            <span className="animate-spin text-base">⟳</span>
+          ) : (
+            <svg className="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+          )}
+          {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+        </button>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-1 h-px bg-white/[0.08]" />
+          <span className="text-xs text-slate-600 font-medium">or</span>
+          <div className="flex-1 h-px bg-white/[0.08]" />
+        </div>
+
+        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Email</label>
             <input
               type="email"
               required
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="email@example.com"
-              style={{ width: '100%', padding: '11px 14px', background: 'var(--surface2)', border: '1.5px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontFamily: 'Outfit, sans-serif', fontSize: 14, outline: 'none' }}
+              placeholder="you@example.com"
+              className="w-full px-4 py-3 bg-[#1C2333] border border-white/[0.08] rounded-xl text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-cyan-500/50 transition-colors"
             />
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 10, fontWeight: 700, color: 'var(--text3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: 1 }}>Password</label>
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Password</label>
             <input
               type="password"
               required
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              style={{ width: '100%', padding: '11px 14px', background: 'var(--surface2)', border: '1.5px solid var(--border)', borderRadius: 10, color: 'var(--text)', fontFamily: 'Outfit, sans-serif', fontSize: 14, outline: 'none' }}
+              className="w-full px-4 py-3 bg-[#1C2333] border border-white/[0.08] rounded-xl text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-cyan-500/50 transition-colors"
             />
           </div>
           <button
             type="submit"
-            disabled={loading}
-            style={{ width: '100%', padding: 13, borderRadius: 11, fontSize: 15, fontWeight: 700, border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: 'linear-gradient(135deg,#06B6D4,#0891B2)', color: 'white', fontFamily: 'Outfit, sans-serif', opacity: loading ? 0.7 : 1 }}
+            disabled={loading || googleLoading}
+            className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-cyan-400 text-white font-bold text-sm disabled:opacity-60 disabled:cursor-not-allowed hover:from-cyan-400 hover:to-cyan-300 active:from-cyan-600 active:to-cyan-500 transition-all mt-1"
           >
-            {loading ? 'Signing in...' : 'Sign In ->'}
+            {loading ? 'Signing in…' : 'Sign In →'}
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 13, color: 'var(--text3)' }}>
+        <p className="text-center text-sm text-slate-500 mt-5">
           Don&apos;t have an account?{' '}
-          <a href="/auth/signup" style={{ color: '#06B6D4', fontWeight: 600, textDecoration: 'none' }}>Create one</a>
+          <Link href="/auth/signup" className="text-cyan-400 font-semibold hover:text-cyan-300">
+            Sign up free
+          </Link>
         </p>
       </div>
     </div>
