@@ -78,15 +78,14 @@ export default function AdminPage() {
   const [addingSubject, setAddingSubject] = useState(false)
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user && user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-        setAuthed(true)
-        fetchAll()
-      } else if (user) {
-        setLoginErr('Please sign in with the admin account.')
-      }
-      setAuthLoading(false)
-    })
+    fetch('/api/admin/check')
+      .then(r => r.json())
+      .then(({ isAdmin }) => {
+        if (isAdmin) { setAuthed(true); fetchAll() }
+        else { setLoginErr('Please sign in with the admin account.') }
+        setAuthLoading(false)
+      })
+      .catch(() => setAuthLoading(false))
   }, [])
 
   async function fetchAll() {
@@ -122,8 +121,9 @@ export default function AdminPage() {
     setLoginErr('')
     const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPass })
     if (error) { setLoginErr(error.message); return }
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user?.email !== process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
+    const res = await fetch('/api/admin/check')
+    const { isAdmin } = await res.json()
+    if (!isAdmin) {
       await supabase.auth.signOut()
       setLoginErr('Please sign in with the admin account.')
       return
