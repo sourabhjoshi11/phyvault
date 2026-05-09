@@ -30,33 +30,38 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      setUser(user)
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUser(user)
 
-      if (user) {
-        // Fetch purchases
-        const { data: purcs } = await supabase.from('purchases').select('item_id').eq('user_id', user.id)
-        setPurchases((purcs || []).map((p: any) => p.item_id))
+        if (user) {
+          const [{ data: purcs }, { data: activeSub }] = await Promise.all([
+            supabase.from('purchases').select('item_id').eq('user_id', user.id),
+            supabase
+              .from('subscriptions')
+              .select('id')
+              .eq('user_id', user.id)
+              .eq('status', 'active')
+              .gte('expires_at', new Date().toISOString())
+              .maybeSingle(),
+          ])
+          setPurchases((purcs || []).map((p: any) => p.item_id))
+          setHasSubscription(!!activeSub)
+        }
 
-        // Check subscription
-        const { data: sub } = await supabase
-          .from('subscriptions')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('status', 'active')
-          .gte('expires_at', new Date().toISOString())
-          .single()
-        setHasSubscription(!!sub)
+        const [{ data: subjectData }, { data: paps }, { data: nts }] = await Promise.all([
+          supabase.from('subjects').select('*').eq('id', params.id).single(),
+          supabase.from('papers').select('*').eq('subject_id', params.id).eq('is_active', true).order('exam_year', { ascending: false }),
+          supabase.from('notes').select('*').eq('subject_id', params.id).eq('is_active', true),
+        ])
+        setSubject(subjectData)
+        setPapers(paps || [])
+        setNotes(nts || [])
+      } catch (err) {
+        console.error('Subject page load error:', err)
+      } finally {
+        setLoading(false)
       }
-
-      // Fetch subject data
-      const { data: sub } = await supabase.from('subjects').select('*').eq('id', params.id).single()
-      setSubject(sub)
-      const { data: paps } = await supabase.from('papers').select('*').eq('subject_id', params.id).eq('is_active', true).order('exam_year', { ascending: false })
-      setPapers(paps || [])
-      const { data: nts } = await supabase.from('notes').select('*').eq('subject_id', params.id).eq('is_active', true)
-      setNotes(nts || [])
-      setLoading(false)
     }
     init()
   }, [params.id])
