@@ -31,6 +31,13 @@ export async function GET(
       return NextResponse.json({ error: 'PDF has not been uploaded yet' }, { status: 404 })
     }
 
+    // Admin bypass — free access
+    const adminEmail = process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL
+    if (adminEmail && user.email === adminEmail) {
+      const signedUrl = await getSignedUrl(paper.file_path, 600)
+      return NextResponse.json({ url: signedUrl, type: 'admin' })
+    }
+
     // Free preview check
     if (paper.is_free_preview) {
       const signedUrl = await getSignedUrl(paper.file_path, 300)

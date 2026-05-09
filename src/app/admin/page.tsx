@@ -90,17 +90,9 @@ export default function AdminPage() {
   }, [])
 
   async function fetchAll() {
-    const [
-      { data: subs }, { data: paps }, { data: nts },
-      { data: ords }, { data: usrs }, { data: prs },
-    ] = await Promise.all([
-      supabase.from('subjects').select('*').order('year').order('sort_order'),
-      supabase.from('papers').select('*').order('exam_year', { ascending: false }),
-      supabase.from('notes').select('*').order('created_at', { ascending: false }),
-      supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(100),
-      supabase.from('profiles').select('*').order('created_at', { ascending: false }),
-      supabase.from('prices').select('*'),
-    ])
+    const res = await fetch('/api/admin/data')
+    if (!res.ok) return
+    const { subjects: subs, papers: paps, notes: nts, orders: ords, profiles: usrs, prices: prs } = await res.json()
     setSubjects(subs || [])
     setPapers(paps || [])
     setNotes(nts || [])
@@ -200,43 +192,58 @@ export default function AdminPage() {
     }
   }
 
+  async function adminAction(action: string, id: string, value: any) {
+    const res = await fetch('/api/admin/action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, id, value }),
+    })
+    if (!res.ok) { showToast('❌ Action failed'); return false }
+    return true
+  }
+
   async function togglePaper(id: string, current: boolean) {
-    await supabase.from('papers').update({ is_active: !current }).eq('id', id)
-    setPapers(p => p.map(x => x.id === id ? { ...x, is_active: !current } : x))
-    showToast(current ? '⏸ Paper hidden' : '✅ Paper activated')
+    if (await adminAction('toggle_paper', id, !current)) {
+      setPapers(p => p.map(x => x.id === id ? { ...x, is_active: !current } : x))
+      showToast(current ? '⏸ Paper hidden' : '✅ Paper activated')
+    }
   }
 
   async function updatePaperPrice(id: string, price: number) {
     if (!price || price < 0) return
-    await supabase.from('papers').update({ price }).eq('id', id)
-    setPapers(p => p.map(x => x.id === id ? { ...x, price } : x))
-    showToast(`✅ Price updated: ₹${price}`)
+    if (await adminAction('update_paper_price', id, price)) {
+      setPapers(p => p.map(x => x.id === id ? { ...x, price } : x))
+      showToast(`✅ Price updated: ₹${price}`)
+    }
   }
 
   async function toggleNote(id: string, current: boolean) {
-    await supabase.from('notes').update({ is_active: !current }).eq('id', id)
-    setNotes(n => n.map(x => x.id === id ? { ...x, is_active: !current } : x))
-    showToast(current ? '⏸ Note hidden' : '✅ Note activated')
+    if (await adminAction('toggle_note', id, !current)) {
+      setNotes(n => n.map(x => x.id === id ? { ...x, is_active: !current } : x))
+      showToast(current ? '⏸ Note hidden' : '✅ Note activated')
+    }
   }
 
   async function updateNotePrice(id: string, price: number) {
     if (!price || price < 0) return
-    await supabase.from('notes').update({ price }).eq('id', id)
-    setNotes(n => n.map(x => x.id === id ? { ...x, price } : x))
-    showToast(`✅ Price updated: ₹${price}`)
+    if (await adminAction('update_note_price', id, price)) {
+      setNotes(n => n.map(x => x.id === id ? { ...x, price } : x))
+      showToast(`✅ Price updated: ₹${price}`)
+    }
   }
 
   async function toggleSubject(id: string, current: boolean) {
-    await supabase.from('subjects').update({ is_active: !current }).eq('id', id)
-    setSubjects(s => s.map(x => x.id === id ? { ...x, is_active: !current } : x))
-    showToast(current ? '⏸ Subject hidden' : '✅ Subject activated')
+    if (await adminAction('toggle_subject', id, !current)) {
+      setSubjects(s => s.map(x => x.id === id ? { ...x, is_active: !current } : x))
+      showToast(current ? '⏸ Subject hidden' : '✅ Subject activated')
+    }
   }
 
   async function addSubject(e: React.FormEvent) {
     e.preventDefault()
     if (!newSubName || !newSubCode) return
     setAddingSubject(true)
-    const { error } = await supabase.from('subjects').insert({
+    const ok = await adminAction('add_subject', '', {
       name: newSubName,
       code: newSubCode.toUpperCase(),
       year: newSubYear,
@@ -247,7 +254,7 @@ export default function AdminPage() {
       is_active: true,
     })
     setAddingSubject(false)
-    if (error) { showToast(`❌ ${error.message}`); return }
+    if (!ok) return
     showToast('✅ Subject added!')
     setShowAddSubject(false)
     setNewSubName(''); setNewSubCode(''); setNewSubYear('y1')
