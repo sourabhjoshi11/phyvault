@@ -51,6 +51,7 @@ export default function AdminPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [users, setUsers] = useState<Profile[]>([])
   const [prices, setPrices] = useState<Record<string, number>>({})
+  const [localPrices, setLocalPrices] = useState<Record<string, string>>({})
   const [toast, setToast] = useState('')
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploading, setUploading] = useState(false)
@@ -108,6 +109,9 @@ export default function AdminPage() {
     const priceMap: Record<string, number> = {}
     ;(prs || []).forEach((p: any) => { priceMap[p.key] = p.value })
     setPrices(priceMap)
+    const localMap: Record<string, string> = {}
+    Object.entries(priceMap).forEach(([k, v]) => { localMap[k] = String(v) })
+    setLocalPrices(localMap)
     if (subs && subs.length > 0) setUpSubject(subs[0].id)
   }
 
@@ -182,8 +186,18 @@ export default function AdminPage() {
   }
 
   async function savePrice(key: string, value: number) {
-    await supabase.from('prices').upsert({ key, value })
-    showToast(`✅ Price updated: ₹${value}`)
+    if (!value || value < 0) return
+    const res = await fetch('/api/admin/prices', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, value }),
+    })
+    if (res.ok) {
+      setPrices(p => ({ ...p, [key]: value }))
+      showToast(`✅ Price updated: ₹${value}`)
+    } else {
+      showToast('❌ Price update failed')
+    }
   }
 
   async function togglePaper(id: string, current: boolean) {
@@ -874,18 +888,20 @@ export default function AdminPage() {
                 <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">💰 Per PDF Prices</div>
                 <div className="p-5 space-y-1">
                   {[
-                    { key: 'chapter_notes', label: 'Chapter Notes PDF' },
-                    { key: 'short_notes', label: 'Short Notes PDF' },
-                    { key: 'important_qs', label: 'Important Questions' },
-                    { key: 'pyq_question', label: 'PYQ Question Paper' },
-                    { key: 'pyq_solution', label: 'PYQ Solution' },
+                    { key: 'chapter_notes', label: 'Chapter Notes PDF', def: 29 },
+                    { key: 'short_notes', label: 'Short Notes PDF', def: 29 },
+                    { key: 'important_qs', label: 'Important Questions', def: 29 },
+                    { key: 'pyq_question', label: 'PYQ Question Paper', def: 29 },
+                    { key: 'pyq_solution', label: 'PYQ Solution', def: 29 },
                   ].map(item => (
                     <div key={item.key} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04]">
                       <span className="flex-1 text-sm font-semibold">{item.label}</span>
                       <span className="text-slate-500 font-bold">₹</span>
-                      <input type="number" defaultValue={prices[item.key] || 29}
-                        onBlur={e => savePrice(item.key, parseInt(e.target.value))}
-                        className="w-20 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1.5 text-sm font-mono font-bold text-center text-white outline-none" />
+                      <input type="number"
+                        value={localPrices[item.key] ?? String(prices[item.key] ?? item.def)}
+                        onChange={e => setLocalPrices(p => ({ ...p, [item.key]: e.target.value }))}
+                        onBlur={e => savePrice(item.key, parseInt(e.target.value) || item.def)}
+                        className="w-20 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1.5 text-sm font-mono font-bold text-center text-white outline-none focus:border-cyan-500/50" />
                     </div>
                   ))}
                 </div>
@@ -894,15 +910,17 @@ export default function AdminPage() {
                 <div className="px-5 py-3 border-b border-white/[0.06] text-sm font-bold">👑 Subscription Plans</div>
                 <div className="p-5 space-y-1">
                   {[
-                    { key: 'pro_monthly', label: 'Pro Plan (Monthly)', default: 149 },
-                    { key: 'annual', label: 'Annual Plan', default: 999 },
+                    { key: 'pro_monthly', label: 'Pro Plan (Monthly)', def: 149 },
+                    { key: 'annual', label: 'Annual Plan', def: 999 },
                   ].map(item => (
                     <div key={item.key} className="flex items-center gap-3 py-2.5 border-b border-white/[0.04]">
                       <span className="flex-1 text-sm font-semibold">{item.label}</span>
                       <span className="text-slate-500 font-bold">₹</span>
-                      <input type="number" defaultValue={prices[item.key] || item.default}
-                        onBlur={e => savePrice(item.key, parseInt(e.target.value))}
-                        className="w-24 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1.5 text-sm font-mono font-bold text-center text-white outline-none" />
+                      <input type="number"
+                        value={localPrices[item.key] ?? String(prices[item.key] ?? item.def)}
+                        onChange={e => setLocalPrices(p => ({ ...p, [item.key]: e.target.value }))}
+                        onBlur={e => savePrice(item.key, parseInt(e.target.value) || item.def)}
+                        className="w-24 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1.5 text-sm font-mono font-bold text-center text-white outline-none focus:border-cyan-500/50" />
                     </div>
                   ))}
                 </div>
