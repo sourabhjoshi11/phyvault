@@ -192,10 +192,24 @@ export default function AdminPage() {
     showToast(current ? '⏸ Paper hidden' : '✅ Paper activated')
   }
 
+  async function updatePaperPrice(id: string, price: number) {
+    if (!price || price < 0) return
+    await supabase.from('papers').update({ price }).eq('id', id)
+    setPapers(p => p.map(x => x.id === id ? { ...x, price } : x))
+    showToast(`✅ Price updated: ₹${price}`)
+  }
+
   async function toggleNote(id: string, current: boolean) {
     await supabase.from('notes').update({ is_active: !current }).eq('id', id)
     setNotes(n => n.map(x => x.id === id ? { ...x, is_active: !current } : x))
     showToast(current ? '⏸ Note hidden' : '✅ Note activated')
+  }
+
+  async function updateNotePrice(id: string, price: number) {
+    if (!price || price < 0) return
+    await supabase.from('notes').update({ price }).eq('id', id)
+    setNotes(n => n.map(x => x.id === id ? { ...x, price } : x))
+    showToast(`✅ Price updated: ₹${price}`)
   }
 
   async function toggleSubject(id: string, current: boolean) {
@@ -571,7 +585,17 @@ export default function AdminPage() {
                               {p.file_path ? '✅ ' + p.file_path.split('/').pop() : '⏳ Pending'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-bold text-emerald-400">₹{p.price}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-500 text-xs">₹</span>
+                              <input
+                                type="number"
+                                defaultValue={p.price}
+                                onBlur={e => updatePaperPrice(p.id, parseInt(e.target.value))}
+                                className="w-16 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono font-bold text-emerald-400 outline-none focus:border-cyan-500/50 text-center"
+                              />
+                            </div>
+                          </td>
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">{p.downloads}</td>
                           <td className="px-4 py-3">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${p.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
@@ -635,7 +659,17 @@ export default function AdminPage() {
                               {n.file_path ? '✅ ' + n.file_path.split('/').pop() : '⏳ Pending'}
                             </span>
                           </td>
-                          <td className="px-4 py-3 font-bold text-emerald-400">₹{n.price}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-1">
+                              <span className="text-slate-500 text-xs">₹</span>
+                              <input
+                                type="number"
+                                defaultValue={n.price}
+                                onBlur={e => updateNotePrice(n.id, parseInt(e.target.value))}
+                                className="w-16 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono font-bold text-emerald-400 outline-none focus:border-cyan-500/50 text-center"
+                              />
+                            </div>
+                          </td>
                           <td className="px-4 py-3">
                             <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${n.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
                               {n.is_active ? '● Active' : '● Hidden'}
