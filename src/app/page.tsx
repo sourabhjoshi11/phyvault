@@ -7,10 +7,10 @@ import { Navbar } from '@/components/Navbar'
 import type { Subject, Year } from '@/types'
 
 const YEARS = [
-  { id: 'y1' as Year, label: '1st Year', color: '#06B6D4', subjects: 5 },
-  { id: 'y2' as Year, label: '2nd Year', color: '#10B981', subjects: 6 },
-  { id: 'y3' as Year, label: '3rd Year', color: '#F59E0B', subjects: 6 },
-  { id: 'y4' as Year, label: '4th Year', color: '#EF4444', subjects: 7 },
+  { id: 'y1' as Year, label: '1st Year', color: '#06B6D4' },
+  { id: 'y2' as Year, label: '2nd Year', color: '#10B981' },
+  { id: 'y3' as Year, label: '3rd Year', color: '#F59E0B' },
+  { id: 'y4' as Year, label: '4th Year', color: '#EF4444' },
 ]
 
 export default function HomePage() {
@@ -19,8 +19,12 @@ export default function HomePage() {
   const [activeYear, setActiveYear] = useState<Year>('y1')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [stats, setStats] = useState({ subjects: 0, notes: 0, papers: 0, yearCounts: {} as Record<string, number> })
 
-  useEffect(() => { fetchSubjects('y1') }, [])
+  useEffect(() => {
+    fetchSubjects('y1')
+    fetch('/api/stats').then(r => r.json()).then(data => setStats(data)).catch(() => {})
+  }, [])
 
   async function fetchSubjects(year: Year) {
     setLoading(true)
@@ -42,6 +46,10 @@ export default function HomePage() {
     setActiveYear(year)
     fetchSubjects(year)
   }
+
+  const totalSubjects = stats.subjects || 0
+  const totalNotes = stats.notes || 0
+  const totalPapers = stats.papers || 0
 
   return (
     <div className="min-h-screen bg-[#07090F] text-[#EEF2FF]">
@@ -80,8 +88,13 @@ export default function HomePage() {
 
         {/* Stats */}
         <div className="flex flex-wrap gap-8 mt-10">
-          {[['24', 'Total Subjects'], ['60+', 'Chapter Notes'], ['55+', 'PYQ Papers'], ['4', 'Years Covered']].map(([n, l]) => (
-            <div key={l}>
+          {[
+            [totalSubjects || '—', 'Total Subjects'],
+            [totalNotes ? `${totalNotes}+` : '—', 'Chapter Notes'],
+            [totalPapers ? `${totalPapers}+` : '—', 'PYQ Papers'],
+            ['4', 'Years Covered'],
+          ].map(([n, l]) => (
+            <div key={String(l)}>
               <div className="text-2xl font-black tracking-tight">{n}</div>
               <div className="text-[11px] text-slate-500 mt-0.5 font-medium">{l}</div>
             </div>
@@ -94,26 +107,31 @@ export default function HomePage() {
         <div className="mb-7">
           <div className="text-[10px] tracking-[2.5px] uppercase text-cyan-400 font-bold mb-1">Browse by Year</div>
           <div className="text-2xl sm:text-3xl font-black tracking-tight mb-1">All Subjects</div>
-          <div className="text-slate-400 text-sm">4 years · 24 subjects in one place</div>
+          <div className="text-slate-400 text-sm">
+            {totalSubjects ? `${totalSubjects} subjects` : '4 years'} · all in one place
+          </div>
         </div>
 
         {/* Year pills — horizontal scroll on mobile */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-none -mx-4 px-4">
-          {YEARS.map(y => (
-            <button
-              key={y.id}
-              onClick={() => switchYear(y.id)}
-              className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-150"
-              style={{
-                borderColor: activeYear === y.id ? y.color : 'rgba(255,255,255,0.08)',
-                background: activeYear === y.id ? y.color : 'transparent',
-                color: activeYear === y.id ? 'white' : '#94A3B8',
-              }}
-            >
-              {y.label}
-              <span className="ml-1 opacity-60 text-[10px]">({y.subjects})</span>
-            </button>
-          ))}
+          {YEARS.map(y => {
+            const count = stats.yearCounts[y.id]
+            return (
+              <button
+                key={y.id}
+                onClick={() => switchYear(y.id)}
+                className="flex-shrink-0 px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-150"
+                style={{
+                  borderColor: activeYear === y.id ? y.color : 'rgba(255,255,255,0.08)',
+                  background: activeYear === y.id ? y.color : 'transparent',
+                  color: activeYear === y.id ? 'white' : '#94A3B8',
+                }}
+              >
+                {y.label}
+                {count != null && <span className="ml-1 opacity-60 text-[10px]">({count})</span>}
+              </button>
+            )
+          })}
         </div>
 
         {/* Subject grid */}
