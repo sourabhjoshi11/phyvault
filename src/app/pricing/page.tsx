@@ -157,7 +157,7 @@ export default function PricingPage() {
 
         {/* Exam pattern */}
         <div className="bg-[#111827] border border-white/[0.06] rounded-2xl p-6">
-          <div className="font-black text-base mb-4">📊 MPMSU Exam Pattern</div>
+          <div className="font-black text-base mb-4">📊 Exam Pattern</div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm text-slate-400">
             {[
               ['10 VSAQs', '× 2 marks', '= 20'],

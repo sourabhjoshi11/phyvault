@@ -61,12 +61,8 @@ export default function HomePage() {
           Companion
         </h1>
 
-        <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-[#111827] border border-white/[0.08] text-xs text-slate-400 mb-5 font-medium">
-          🎓 MP Medical Science University, Jabalpur
-        </div>
-
         <p className="text-sm sm:text-[15px] text-slate-400 leading-relaxed mb-7 max-w-sm sm:max-w-md">
-          Smart notes, previous year question papers &amp; detailed solutions for MBBS, BPT and all medical programs — built around the official MPMSU syllabus.
+          Smart notes, previous year question papers &amp; detailed solutions for MBBS, BPT and all medical programs.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -96,7 +92,7 @@ export default function HomePage() {
       {/* ── SUBJECTS ── */}
       <section id="subjects" className="max-w-6xl mx-auto px-4 pb-16">
         <div className="mb-7">
-          <div className="text-[10px] tracking-[2.5px] uppercase text-cyan-400 font-bold mb-1">MPMSU Syllabus</div>
+          <div className="text-[10px] tracking-[2.5px] uppercase text-cyan-400 font-bold mb-1">Browse by Year</div>
           <div className="text-2xl sm:text-3xl font-black tracking-tight mb-1">All Subjects</div>
           <div className="text-slate-400 text-sm">4 years · 24 subjects in one place</div>
         </div>
@@ -166,7 +162,7 @@ export default function HomePage() {
 
       {/* ── FOOTER ── */}
       <footer className="border-t border-white/[0.06] py-6 text-center text-slate-600 text-xs px-4">
-        MedicoseBuddy · MP Medical Science University, Jabalpur · Medical Study Platform
+        MedicoseBuddy · Medical Study Platform for MBBS, BPT &amp; All Medical Students
       </footer>
     </div>
   )

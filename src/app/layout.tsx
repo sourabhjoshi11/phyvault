@@ -9,12 +9,12 @@ const outfit = Outfit({
 })
 
 export const metadata: Metadata = {
-  title: 'MedicoseBuddy — BPT Study Platform',
-  description: 'MP Medical Science University, Jabalpur — BPT Chapter Notes, PYQ Papers & Solutions',
-  keywords: 'BPT notes, MPMSU, physiotherapy, PYQ papers, BPT study material',
+  title: 'MedicoseBuddy — Medical Study Platform',
+  description: 'Chapter Notes, PYQ Papers & Solutions for MBBS, BPT and all medical programs.',
+  keywords: 'MBBS notes, BPT notes, medical PYQ papers, medical study material, chapter notes',
   openGraph: {
-    title: 'MedicoseBuddy — BPT Study Platform',
-    description: 'MPMSU BPT ke liye chapter notes, PYQ papers aur solutions',
+    title: 'MedicoseBuddy — Medical Study Platform',
+    description: 'Chapter Notes, PYQ Papers & Solutions for MBBS, BPT and all medical programs.',
     type: 'website',
   },
 }

@@ -199,7 +199,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
           <div className="text-5xl sm:text-6xl flex-shrink-0">{subject.icon}</div>
           <div>
             <div className="font-mono text-[10px] text-slate-500 mb-1 font-medium tracking-wider">
-              {subject.code} · MPMSU Jabalpur
+              {subject.code}
             </div>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight mb-1">{subject.name}</h1>
             <p className="text-sm text-slate-400 mb-3 leading-relaxed">{subject.description}</p>
@@ -272,7 +272,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-500 mb-4">Annual Examination · MPMSU Jabalpur</div>
+                        <div className="text-xs text-slate-500 mb-4">Annual Examination</div>
 
                         {/* Question row */}
                         <div className="flex items-center gap-3 py-3 border-b border-white/[0.05]">
