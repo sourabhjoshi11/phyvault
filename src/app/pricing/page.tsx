@@ -32,9 +32,17 @@ export default function PricingPage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState<string | null>(null)
   const [toast, setToast] = useState('')
+  const [dbPrices, setDbPrices] = useState<Record<string, number>>({})
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => setUser(user))
+    supabase.from('prices').select('*').then(({ data }) => {
+      if (data) {
+        const map: Record<string, number> = {}
+        data.forEach((row: any) => { map[row.key] = row.value })
+        setDbPrices(map)
+      }
+    })
   }, [])
 
   function showToast(msg: string) {
@@ -49,7 +57,7 @@ export default function PricingPage() {
     setLoading(planId)
     try {
       const plan = PLANS.find(p => p.id === planId)!
-      const amount = typeof plan.price === 'number' ? plan.price : 0
+      const amount = dbPrices[planId] ?? (typeof plan.price === 'number' ? plan.price : 0)
 
       const res = await fetch('/api/payments/order', {
         method: 'POST',
@@ -124,7 +132,7 @@ export default function PricingPage() {
                 ) : (
                   <>
                     <span className="text-lg font-bold text-slate-400 mb-1">₹</span>
-                    <span className="text-4xl font-black tracking-tight">{plan.price}</span>
+                    <span className="text-4xl font-black tracking-tight">{dbPrices[plan.id] ?? plan.price}</span>
                   </>
                 )}
                 {plan.period && (
