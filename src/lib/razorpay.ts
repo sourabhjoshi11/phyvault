@@ -1,5 +1,5 @@
 import Razorpay from 'razorpay'
-import crypto from 'crypto'
+import crypto from 'node:crypto'
 
 // ── Razorpay Instance ──
 export const razorpay = new Razorpay({
@@ -15,7 +15,7 @@ export async function createOrder(amountInRupees: number, receipt: string) {
     amount: amountInRupees * 100, // paise mein
     currency: 'INR',
     receipt,
-    notes: { platform: 'PhysioVault' },
+    notes: { platform: 'MedicoseBuddy' },
   })
   return order
 }

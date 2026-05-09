@@ -13,67 +13,58 @@ export async function GET(
       return NextResponse.json({ error: 'Login required' }, { status: 401 })
     }
 
-    const paperId = params.id
+    const noteId = params.id
 
-    // Paper fetch karo
-    const { data: paper } = await supabaseAdmin
-      .from('papers')
-      .select('*, subjects(name)')
-      .eq('id', paperId)
+    const { data: note } = await supabaseAdmin
+      .from('notes')
+      .select('*')
+      .eq('id', noteId)
       .eq('is_active', true)
       .single()
 
-    if (!paper) {
-      return NextResponse.json({ error: 'Paper not found' }, { status: 404 })
+    if (!note) {
+      return NextResponse.json({ error: 'Note not found' }, { status: 404 })
     }
 
-    if (!paper.file_path) {
+    if (!note.file_path) {
       return NextResponse.json({ error: 'PDF has not been uploaded yet' }, { status: 404 })
     }
 
     // Admin bypass — free access
     const adminEmail = process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL
     if (adminEmail && user.email === adminEmail) {
-      const signedUrl = await getSignedUrl(paper.file_path, 600)
+      const signedUrl = await getSignedUrl(note.file_path, 600)
       return NextResponse.json({ url: signedUrl, type: 'admin' })
     }
 
-    // Free preview check
-    if (paper.is_free_preview) {
-      const signedUrl = await getSignedUrl(paper.file_path, 300)
-      return NextResponse.json({ url: signedUrl, type: 'free_preview' })
-    }
-
-    // Subscription check karo
+    // Subscription check
     const subscription = await checkSubscription(user.id)
     if (subscription) {
-      const signedUrl = await getSignedUrl(paper.file_path, 300)
+      const signedUrl = await getSignedUrl(note.file_path, 300)
       return NextResponse.json({ url: signedUrl, type: 'subscription' })
     }
 
-    // Individual purchase check karo
+    // Individual purchase check
     const { data: purchase } = await supabase
       .from('purchases')
       .select('id')
       .eq('user_id', user.id)
-      .eq('item_id', paperId)
+      .eq('item_id', noteId)
       .single()
 
     if (!purchase) {
       return NextResponse.json({
         error: 'Access denied',
         message: 'This PDF must be purchased to access it',
-        price: paper.price
+        price: note.price,
       }, { status: 403 })
     }
 
-    // Signed URL generate karo (5 min valid)
-    const signedUrl = await getSignedUrl(paper.file_path, 300)
-
+    const signedUrl = await getSignedUrl(note.file_path, 300)
     return NextResponse.json({ url: signedUrl, type: 'purchased' })
 
   } catch (error: any) {
-    console.error('Download error:', error)
+    console.error('Note download error:', error)
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }

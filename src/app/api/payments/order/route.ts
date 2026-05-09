@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@/lib/supabase-server'
+import { createServerClient, supabaseAdmin } from '@/lib/supabase-server'
 import { createOrder } from '@/lib/razorpay'
 
 export async function POST(req: NextRequest) {
@@ -18,34 +18,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Amount verify karo database se (tamper-proof)
+    // Amount verify karo DB se — supabaseAdmin use karo RLS bypass ke liye
     let dbAmount = 0
     if (item_type === 'paper') {
-      const { data: paper } = await supabase
-        .from('papers')
-        .select('price')
-        .eq('id', item_id)
-        .single()
-      dbAmount = paper?.price || 0
+      const { data: paper } = await supabaseAdmin
+        .from('papers').select('price').eq('id', item_id).single()
+      dbAmount = Number(paper?.price) || 0
     } else if (item_type === 'note') {
-      const { data: note } = await supabase
-        .from('notes')
-        .select('price')
-        .eq('id', item_id)
-        .single()
-      dbAmount = note?.price || 0
+      const { data: note } = await supabaseAdmin
+        .from('notes').select('price').eq('id', item_id).single()
+      dbAmount = Number(note?.price) || 0
+    } else if (item_type === 'subscription') {
+      const { data: priceRow } = await supabaseAdmin
+        .from('prices').select('value').eq('key', item_id).single()
+      dbAmount = Number(priceRow?.value) || 0
     }
 
-    if (dbAmount !== amount) {
-      return NextResponse.json({ error: 'Amount mismatch' }, { status: 400 })
+    if (dbAmount === 0) {
+      return NextResponse.json({ error: 'Item not found or price not set' }, { status: 404 })
+    }
+
+    if (Number(dbAmount) !== Number(amount)) {
+      return NextResponse.json({ error: `Amount mismatch: expected ₹${dbAmount}` }, { status: 400 })
     }
 
     // Razorpay order create karo
-    const receipt = `pvault_${Date.now()}_${user.id.slice(0,8)}`
+    const receipt = `medico_${Date.now()}_${user.id.slice(0, 8)}`
     const order = await createOrder(amount, receipt)
 
-    // Order save karo database mein
-    await supabase.from('orders').insert({
+    // Order save karo — supabaseAdmin use karo
+    await supabaseAdmin.from('orders').insert({
       user_id: user.id,
       razorpay_order_id: order.id,
       item_type,
@@ -66,3 +68,4 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
 }
+
