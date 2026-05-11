@@ -20,7 +20,7 @@ export function Navbar({ breadcrumb }: NavbarProps) {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/[0.06] bg-[#07090F]/90 backdrop-blur-lg">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-screen-2xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cyan-500 to-emerald-500 flex items-center justify-center text-xs font-bold text-white flex-shrink-0">

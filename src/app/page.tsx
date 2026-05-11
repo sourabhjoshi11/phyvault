@@ -56,7 +56,7 @@ export default function HomePage() {
       <Navbar />
 
       {/* ── HERO ── */}
-      <section className="max-w-6xl mx-auto px-4 pt-10 pb-10 sm:pt-16 sm:pb-14">
+      <section className="max-w-screen-2xl mx-auto px-4 pt-10 pb-10 sm:pt-16 sm:pb-14">
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-cyan-500/10 border border-cyan-500/25 text-cyan-400 mb-5 uppercase tracking-widest">
           MBBS · BPT · Medical Students
         </div>
@@ -103,7 +103,7 @@ export default function HomePage() {
       </section>
 
       {/* ── SUBJECTS ── */}
-      <section id="subjects" className="max-w-6xl mx-auto px-4 pb-16">
+      <section id="subjects" className="max-w-screen-2xl mx-auto px-4 pb-16">
         <div className="mb-7">
           <div className="text-[10px] tracking-[2.5px] uppercase text-cyan-400 font-bold mb-1">Browse by Year</div>
           <div className="text-2xl sm:text-3xl font-black tracking-tight mb-1">All Subjects</div>
