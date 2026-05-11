@@ -184,7 +184,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
     <div className="min-h-screen bg-[#07090F] text-[#EEF2FF]">
       <Navbar breadcrumb={subject.name} />
 
-      <div className="max-w-5xl mx-auto px-4 py-6">
+      <div className="max-w-screen-xl mx-auto px-4 py-6">
 
         {/* Back */}
         <button
