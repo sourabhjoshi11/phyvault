@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabaseAdmin
         .from('papers')
         .upsert(
-          { subject_id, exam_year: parseInt(exam_year), type, file_path: filePath, file_size: fileSize, price: parseInt(price) || 29, is_free_preview: !!is_free_preview, is_active: true },
+          { subject_id, exam_year: parseInt(exam_year), type, file_path: filePath, file_size: fileSize, price: isNaN(parseInt(price)) ? 29 : parseInt(price), is_free_preview: !!is_free_preview, is_active: true },
           { onConflict: 'subject_id,exam_year,type' }
         )
         .select()
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     if (category === 'note') {
       const { data, error } = await supabaseAdmin
         .from('notes')
-        .insert({ subject_id, title, type: note_type, file_path: filePath, file_size: fileSize, price: parseInt(price) || 29, is_active: true })
+        .insert({ subject_id, title, type: note_type, file_path: filePath, file_size: fileSize, price: isNaN(parseInt(price)) ? 29 : parseInt(price), is_active: true })
         .select()
         .single()
 

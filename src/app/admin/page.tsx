@@ -230,7 +230,7 @@ export default function AdminPage() {
   }
 
   async function updatePaperPrice(id: string, price: number) {
-    if (!price || price < 0) return
+    if (price < 0 || isNaN(price)) return
     if (await adminAction('update_paper_price', id, price)) {
       setPapers(p => p.map(x => x.id === id ? { ...x, price } : x))
       showToast(`✅ Price updated: ₹${price}`)
@@ -245,7 +245,7 @@ export default function AdminPage() {
   }
 
   async function updateNotePrice(id: string, price: number) {
-    if (!price || price < 0) return
+    if (price < 0 || isNaN(price)) return
     if (await adminAction('update_note_price', id, price)) {
       setNotes(n => n.map(x => x.id === id ? { ...x, price } : x))
       showToast(`✅ Price updated: ₹${price}`)

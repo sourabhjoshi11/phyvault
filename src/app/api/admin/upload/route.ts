@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
     if (category === 'paper') {
       const exam_year = parseInt(formData.get('exam_year') as string)
       const type = formData.get('type') as 'question' | 'solution'
-      const price = parseInt(formData.get('price') as string) || 29
+      const price = parseInt(formData.get("price") as string); const safePrice = isNaN(price) ? 29 : price
       const is_free_preview = formData.get('is_free_preview') === 'true'
 
       if (!exam_year || !type) {
@@ -54,7 +54,7 @@ export async function POST(req: NextRequest) {
       const { data, error } = await supabaseAdmin
         .from('papers')
         .upsert(
-          { subject_id, exam_year, type, file_path: filePath, file_size: file.size, price, is_free_preview, is_active: true },
+          { subject_id, exam_year, type, file_path: filePath, file_size: file.size, price: safePrice, is_free_preview, is_active: true },
           { onConflict: 'subject_id,exam_year,type' }
         )
         .select()
@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     if (category === 'note') {
       const note_type = formData.get('note_type') as string
       const title = formData.get('title') as string
-      const price = parseInt(formData.get('price') as string) || 29
+      const price = parseInt(formData.get("price") as string); const safePrice = isNaN(price) ? 29 : price
 
       if (!note_type || !title) {
         return NextResponse.json({ error: 'note_type and title are required for notes' }, { status: 400 })
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
       const { data, error } = await supabaseAdmin
         .from('notes')
-        .insert({ subject_id, title, type: note_type, file_path: filePath, file_size: file.size, price, is_active: true })
+        .insert({ subject_id, title, type: note_type, file_path: filePath, file_size: file.size, price: safePrice, is_active: true })
         .select()
         .single()
 
