@@ -137,42 +137,62 @@ export default function AdminPage() {
     setUploadProgress(0)
     setUploadResult(null)
 
-    const interval = setInterval(() => setUploadProgress(p => Math.min(p + 15, 85)), 200)
-
     try {
-      const fd = new FormData()
-      fd.append('file', file)
-      fd.append('category', upCategory)
-      fd.append('subject_id', upSubject)
-      fd.append('price', upPrice)
-      if (upCategory === 'paper') {
-        fd.append('exam_year', upYear)
-        fd.append('type', upType)
-        fd.append('is_free_preview', String(upFree))
-      } else {
-        fd.append('note_type', upNoteType)
-        fd.append('title', upTitle)
-      }
+      // Step 1: Get signed upload URL from server
+      setUploadProgress(10)
+      const urlRes = await fetch('/api/admin/upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: upCategory,
+          subject_id: upSubject,
+          exam_year: upYear,
+          type: upType,
+          note_type: upNoteType,
+          title: upTitle,
+        }),
+      })
+      const urlData = await urlRes.json()
+      if (!urlRes.ok) throw new Error(urlData.error)
+      const { signedUrl, filePath } = urlData
 
-      const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
-      const ct = res.headers.get('content-type') || ''
-      const data = ct.includes('application/json') ? await res.json() : { error: await res.text() }
+      // Step 2: Upload file directly to Supabase (no size limit)
+      setUploadProgress(30)
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': 'application/pdf' },
+      })
+      if (!uploadRes.ok) throw new Error('File upload to storage failed')
 
-      clearInterval(interval)
+      // Step 3: Record in DB
+      setUploadProgress(80)
+      const recordRes = await fetch('/api/admin/upload-record', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          category: upCategory,
+          filePath,
+          fileSize: file.size,
+          subject_id: upSubject,
+          exam_year: upYear,
+          type: upType,
+          note_type: upNoteType,
+          title: upTitle,
+          price: upPrice,
+          is_free_preview: upFree,
+        }),
+      })
+      const recordData = await recordRes.json()
+      if (!recordRes.ok) throw new Error(recordData.error)
+
       setUploadProgress(100)
-
-      if (res.ok) {
-        setUploadResult(`✅ ${data.message}`)
-        showToast(`✅ ${data.message}`)
-        fetchAll()
-      } else {
-        setUploadResult(`❌ Error: ${data.error}`)
-        showToast(`❌ Upload failed: ${data.error}`)
-      }
+      setUploadResult(`✅ ${recordData.message}`)
+      showToast(`✅ ${recordData.message}`)
+      fetchAll()
     } catch (err: any) {
-      clearInterval(interval)
       setUploadResult(`❌ Error: ${err.message}`)
-      showToast('❌ Upload failed')
+      showToast(`❌ Upload failed: ${err.message}`)
     }
     setUploading(false)
   }
