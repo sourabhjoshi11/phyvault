@@ -648,9 +648,14 @@ export default function AdminPage() {
                               <input
                                 type="number"
                                 defaultValue={p.price}
-                                onBlur={e => updatePaperPrice(p.id, parseInt(e.target.value))}
+                                id={`pp-${p.id}`}
+                                onKeyDown={e => { if (e.key === 'Enter') { const v = parseInt((e.target as HTMLInputElement).value); updatePaperPrice(p.id, v) } }}
                                 className="w-16 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono font-bold text-emerald-400 outline-none focus:border-cyan-500/50 text-center"
                               />
+                              <button
+                                onClick={() => { const el = document.getElementById(`pp-${p.id}`) as HTMLInputElement; if (el) updatePaperPrice(p.id, parseInt(el.value)) }}
+                                className="text-[10px] font-bold px-1.5 py-1 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                              >✓</button>
                             </div>
                           </td>
                           <td className="px-4 py-3 font-mono text-xs text-slate-400">{p.downloads}</td>
@@ -728,9 +733,14 @@ export default function AdminPage() {
                               <input
                                 type="number"
                                 defaultValue={n.price}
-                                onBlur={e => updateNotePrice(n.id, parseInt(e.target.value))}
+                                id={`np-${n.id}`}
+                                onKeyDown={e => { if (e.key === 'Enter') { const v = parseInt((e.target as HTMLInputElement).value); updateNotePrice(n.id, v) } }}
                                 className="w-16 bg-[#1C2333] border border-white/10 rounded-lg px-2 py-1 text-xs font-mono font-bold text-emerald-400 outline-none focus:border-cyan-500/50 text-center"
                               />
+                              <button
+                                onClick={() => { const el = document.getElementById(`np-${n.id}`) as HTMLInputElement; if (el) updateNotePrice(n.id, parseInt(el.value)) }}
+                                className="text-[10px] font-bold px-1.5 py-1 rounded bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 transition-colors"
+                              >✓</button>
                             </div>
                           </td>
                           <td className="px-4 py-3">
