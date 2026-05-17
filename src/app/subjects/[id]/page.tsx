@@ -179,14 +179,15 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
 
   const DownloadBtn = ({ itemId, itemType, price, free }: { itemId: string; itemType: 'paper' | 'note'; price: number; free?: boolean }) => {
     const accessible = canAccess(itemId)
-    if (accessible || free) {
+    const isFree = price === 0
+    if (accessible || free || isFree) {
       return (
         <button
           onClick={() => handleDownload(itemId, itemType)}
           disabled={payLoading === itemId}
           className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 active:bg-emerald-500/30 transition-colors disabled:opacity-50"
         >
-          {payLoading === itemId ? '…' : (free && !accessible ? '👁 Preview' : '⬇ Download')}
+          {payLoading === itemId ? '…' : (free && !accessible && !isFree ? '👁 Preview' : '⬇ Download')}
         </button>
       )
     }
