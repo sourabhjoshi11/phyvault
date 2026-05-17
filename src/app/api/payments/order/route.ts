@@ -14,32 +14,45 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     const { item_type, item_id, amount } = body
 
-    if (!item_type || !item_id || !amount) {
+    if (!item_type || !item_id || amount === undefined || amount === null) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Amount verify karo DB se — supabaseAdmin use karo RLS bypass ke liye
-    let dbAmount = 0
+    // Verify amount from DB — use supabaseAdmin to bypass RLS
+    let dbAmount: number | null = null
     if (item_type === 'paper') {
       const { data: paper } = await supabaseAdmin
         .from('papers').select('price').eq('id', item_id).single()
-      dbAmount = Number(paper?.price) || 0
+      if (paper) dbAmount = Number(paper.price)
     } else if (item_type === 'note') {
       const { data: note } = await supabaseAdmin
         .from('notes').select('price').eq('id', item_id).single()
-      dbAmount = Number(note?.price) || 0
+      if (note) dbAmount = Number(note.price)
     } else if (item_type === 'subscription') {
       const { data: priceRow } = await supabaseAdmin
         .from('prices').select('value').eq('key', item_id).single()
-      dbAmount = Number(priceRow?.value) || 0
+      if (priceRow) dbAmount = Number(priceRow.value)
     }
 
-    if (dbAmount === 0) {
-      return NextResponse.json({ error: 'Item not found or price not set' }, { status: 404 })
+    if (dbAmount === null) {
+      return NextResponse.json({ error: 'Item not found' }, { status: 404 })
     }
 
-    if (Number(dbAmount) !== Number(amount)) {
+    if (dbAmount !== Number(amount)) {
       return NextResponse.json({ error: `Amount mismatch: expected ₹${dbAmount}` }, { status: 400 })
+    }
+
+    // Free item — record purchase directly, no Razorpay needed
+    if (dbAmount === 0) {
+      await supabaseAdmin.from('purchases').insert({
+        user_id: user.id,
+        item_type,
+        item_id,
+        amount: 0,
+        razorpay_order_id: null,
+        razorpay_payment_id: null,
+      })
+      return NextResponse.json({ free: true })
     }
 
     // Razorpay order create karo

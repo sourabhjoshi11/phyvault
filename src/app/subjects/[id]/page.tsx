@@ -106,6 +106,13 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
       const order = await res.json()
       if (!res.ok) throw new Error(order.error)
 
+      // Free item — access granted directly
+      if (order.free) {
+        setPurchases(p => [...p, itemId])
+        showToast('✅ Free content unlocked!')
+        return
+      }
+
       openRazorpay({
         key: order.key,
         amount: order.amount,

@@ -38,6 +38,12 @@ export async function GET(
       return NextResponse.json({ url: signedUrl, type: 'admin' })
     }
 
+    // Free item (price = 0)
+    if (Number(paper.price) === 0) {
+      const signedUrl = await getSignedUrl(paper.file_path, 300)
+      return NextResponse.json({ url: signedUrl, type: 'free' })
+    }
+
     // Free preview check
     if (paper.is_free_preview) {
       const signedUrl = await getSignedUrl(paper.file_path, 300)
