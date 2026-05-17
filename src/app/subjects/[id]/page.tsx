@@ -97,6 +97,18 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
   async function initPayment(itemId: string, itemType: string, amount: number) {
     if (!user) { router.push('/auth/login'); return }
 
+    // Free item — skip order API entirely
+    if (amount === 0) {
+      await fetch('/api/payments/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item_type: itemType, item_id: itemId, amount: 0 }),
+      })
+      setPurchases(p => [...p, itemId])
+      showToast('✅ Content unlocked for free!')
+      return
+    }
+
     try {
       const res = await fetch('/api/payments/order', {
         method: 'POST',
@@ -106,12 +118,14 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
       const order = await res.json()
       if (!res.ok) throw new Error(order.error)
 
-      // Free item — access granted directly
+      // Free item — access granted directly (server confirmed price=0)
       if (order.free) {
         setPurchases(p => [...p, itemId])
-        showToast('✅ Free content unlocked!')
+        showToast('✅ Content unlocked for free!')
         return
       }
+
+      if (!order.key) throw new Error('Payment gateway not configured. Contact support.')
 
       openRazorpay({
         key: order.key,
