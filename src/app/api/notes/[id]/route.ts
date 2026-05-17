@@ -37,6 +37,12 @@ export async function GET(
       return NextResponse.json({ url: signedUrl, type: 'admin' })
     }
 
+    // Free item (price = 0)
+    if (Number(note.price) === 0) {
+      const signedUrl = await getSignedUrl(note.file_path, 300)
+      return NextResponse.json({ url: signedUrl, type: 'free' })
+    }
+
     // Subscription check
     const subscription = await checkSubscription(user.id)
     if (subscription) {
