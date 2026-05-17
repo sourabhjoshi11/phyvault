@@ -27,6 +27,7 @@ interface Profile {
 const NAV_ITEMS = [
   { id: 'dashboard', icon: '📊', label: 'Dashboard' },
   { id: 'upload', icon: '☁️', label: 'Upload PDFs' },
+  { id: 'library', icon: '📦', label: 'Library' },
   { id: 'papers', icon: '📄', label: 'PYQ Papers' },
   { id: 'notes', icon: '📝', label: 'Notes' },
   { id: 'subjects', icon: '📚', label: 'Subjects' },
@@ -67,6 +68,11 @@ export default function AdminPage() {
   const [upTitle, setUpTitle] = useState('')
   const [upPrice, setUpPrice] = useState('29')
   const [upFree, setUpFree] = useState(false)
+
+  // Library filters
+  const [libFilter, setLibFilter] = useState<'all' | 'paper' | 'note'>('all')
+  const [libSubject, setLibSubject] = useState('')
+  const [libSearch, setLibSearch] = useState('')
 
   // Add subject form
   const [showAddSubject, setShowAddSubject] = useState(false)
@@ -190,6 +196,7 @@ export default function AdminPage() {
       setUploadResult(`✅ ${recordData.message}`)
       showToast(`✅ ${recordData.message}`)
       fetchAll()
+      setTimeout(() => setActiveTab('library'), 1200)
     } catch (err: any) {
       setUploadResult(`❌ Error: ${err.message}`)
       showToast(`❌ Upload failed: ${err.message}`)
@@ -611,6 +618,142 @@ export default function AdminPage() {
               </div>
             </div>
           )}
+
+          {/* ── LIBRARY ── */}
+          {activeTab === 'library' && (() => {
+            const allItems = [
+              ...papers.map(p => ({ ...p, _kind: 'paper' as const })),
+              ...notes.map(n => ({ ...n, _kind: 'note' as const, exam_year: undefined, type: n.type, downloads: 0 })),
+            ]
+            const filtered = allItems.filter(item => {
+              if (libFilter !== 'all' && item._kind !== libFilter) return false
+              if (libSubject && item.subject_id !== libSubject) return false
+              if (libSearch) {
+                const subj = subjects.find(s => s.id === item.subject_id)
+                const haystack = [
+                  subj?.name, subj?.code,
+                  item._kind === 'paper' ? String((item as any).exam_year) : '',
+                  item._kind === 'note' ? (item as any).title : '',
+                  item.type,
+                ].join(' ').toLowerCase()
+                if (!haystack.includes(libSearch.toLowerCase())) return false
+              }
+              return true
+            })
+
+            return (
+              <div className="space-y-4">
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Total Papers', val: papers.length, icon: '📄', color: 'border-cyan-500', text: 'text-cyan-400' },
+                    { label: 'Total Notes', val: notes.length, icon: '📝', color: 'border-pink-500', text: 'text-pink-400' },
+                    { label: 'With File', val: allItems.filter(i => i.file_path).length, icon: '✅', color: 'border-emerald-500', text: 'text-emerald-400' },
+                  ].map(s => (
+                    <div key={s.label} className={`bg-[#111827] rounded-xl p-4 border-t-2 ${s.color} border border-white/[0.06]`}>
+                      <div className="text-2xl mb-1">{s.icon}</div>
+                      <div className={`text-2xl font-black font-mono ${s.text}`}>{s.val}</div>
+                      <div className="text-[11px] text-slate-500 font-medium">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Filters */}
+                <div className="bg-[#111827] border border-white/[0.06] rounded-xl p-4 flex flex-wrap gap-3 items-center">
+                  <div className="flex gap-1">
+                    {(['all', 'paper', 'note'] as const).map(f => (
+                      <button key={f} onClick={() => setLibFilter(f)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg capitalize transition-colors ${libFilter === f ? 'bg-cyan-500 text-white' : 'bg-white/5 text-slate-400 hover:bg-white/10'}`}>
+                        {f === 'all' ? 'All' : f === 'paper' ? '📄 Papers' : '📝 Notes'}
+                      </button>
+                    ))}
+                  </div>
+                  <select value={libSubject} onChange={e => setLibSubject(e.target.value)}
+                    className="bg-[#1C2333] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50">
+                    <option value="">All Subjects</option>
+                    {subjects.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                  <input value={libSearch} onChange={e => setLibSearch(e.target.value)}
+                    placeholder="Search…"
+                    className="bg-[#1C2333] border border-white/10 rounded-lg px-3 py-1.5 text-xs text-slate-300 outline-none focus:border-cyan-500/50 w-40" />
+                  <span className="ml-auto text-[11px] text-slate-500">{filtered.length} item{filtered.length !== 1 ? 's' : ''}</span>
+                  <button onClick={() => { setUpCategory('paper'); setActiveTab('upload') }}
+                    className="bg-cyan-500 hover:bg-cyan-400 text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors">
+                    + Upload
+                  </button>
+                </div>
+
+                {/* Table */}
+                <div className="bg-[#111827] border border-white/[0.06] rounded-xl overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                          {['Type', 'Subject', 'Details', 'File', 'Price', 'Status', 'Action'].map(h => (
+                            <th key={h} className="px-4 py-2.5 text-left border-b border-white/[0.06]">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.length === 0 ? (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-10 text-center text-slate-500 text-sm">
+                              No uploads found.{' '}
+                              <button onClick={() => { setUpCategory('paper'); setActiveTab('upload') }} className="text-cyan-400 underline">Upload now</button>
+                            </td>
+                          </tr>
+                        ) : filtered.map(item => {
+                          const subj = subjects.find(s => s.id === item.subject_id)
+                          const isPaper = item._kind === 'paper'
+                          return (
+                            <tr key={item.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
+                              <td className="px-4 py-3">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isPaper ? 'bg-cyan-500/10 text-cyan-400' : 'bg-pink-500/10 text-pink-400'}`}>
+                                  {isPaper ? '📄 Paper' : '📝 Note'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-sm font-semibold whitespace-nowrap">{subj?.name || '—'}</td>
+                              <td className="px-4 py-3 text-xs text-slate-300">
+                                {isPaper
+                                  ? <span><span className="font-mono text-cyan-400">{(item as any).exam_year}</span> · <span className={`font-bold ${(item as any).type === 'question' ? 'text-cyan-300' : 'text-emerald-300'}`}>{(item as any).type === 'question' ? 'Question' : 'Solution'}</span></span>
+                                  : <span className="truncate max-w-[180px] block">{(item as any).title} <span className="text-slate-500">· {item.type.replaceAll('_', ' ')}</span></span>
+                                }
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className={`text-[10px] font-mono ${item.file_path ? 'text-emerald-400' : 'text-red-400'}`}>
+                                  {item.file_path ? '✅ ' + item.file_path.split('/').pop() : '⚠ Missing'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 font-mono text-sm text-emerald-400 font-bold">₹{item.price}</td>
+                              <td className="px-4 py-3">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+                                  {item.is_active ? '● Active' : '● Hidden'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => isPaper ? togglePaper(item.id, item.is_active) : toggleNote(item.id, item.is_active)}
+                                    className={`text-xs font-bold px-3 py-1 rounded-lg transition-colors ${item.is_active ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' : 'border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                                    {item.is_active ? 'Hide' : 'Show'}
+                                  </button>
+                                  <button
+                                    onClick={() => isPaper ? deletePaper(item.id) : deleteNote(item.id)}
+                                    className="text-xs font-bold px-2 py-1 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors">
+                                    🗑
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
 
           {/* ── PYQ PAPERS ── */}
           {activeTab === 'papers' && (
